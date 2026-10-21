@@ -1,4 +1,4 @@
-import type { AuthResponse, Place, RouteResult, User } from "./types";
+import type { AuthResponse, GeoPoint, OtpSent, Place, RouteResult, User } from "./types";
 
 export const API_URL = (process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:8000").replace(/\/$/, "");
 
@@ -53,10 +53,10 @@ const qs = (params: Record<string, string | number | boolean | undefined | null>
 };
 
 export const api = {
-  register: (data: { name: string; email: string; password: string; faith?: string; sect?: string }) =>
-    request<AuthResponse>("/auth/register", { method: "POST", body: JSON.stringify(data) }),
-  login: (email: string, password: string) =>
-    request<AuthResponse>("/auth/login", { method: "POST", body: JSON.stringify({ email, password }) }),
+  requestOtp: (identifier: string) =>
+    request<OtpSent>("/auth/otp/request", { method: "POST", body: JSON.stringify({ identifier }) }),
+  verifyOtp: (identifier: string, otp: string) =>
+    request<AuthResponse>("/auth/otp/verify", { method: "POST", body: JSON.stringify({ identifier, otp }) }),
   me: () => request<User>("/auth/me"),
   updateMe: (data: Partial<Pick<User, "name" | "faith" | "sect" | "language">>) =>
     request<User>("/auth/me", { method: "PATCH", body: JSON.stringify(data) }),
@@ -67,6 +67,7 @@ export const api = {
   saved: () => request<Place[]>("/places/saved"),
   save: (id: number) => request<void>(`/places/${id}/save`, { method: "POST" }),
   unsave: (id: number) => request<void>(`/places/${id}/save`, { method: "DELETE" }),
+  geocode: (q: string) => request<GeoPoint[]>(`/geocode${qs({ q })}`),
   route: (params: { start: string; end: string; max_detour_km?: number; sect?: string }) =>
     request<RouteResult>(`/route${qs(params)}`),
 };

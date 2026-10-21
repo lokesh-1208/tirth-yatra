@@ -2,6 +2,7 @@ import os
 
 os.environ["DATABASE_URL"] = "sqlite:///:memory:"
 os.environ["SECRET_KEY"] = "test-secret"
+os.environ["EXTERNAL_GEO_ENABLED"] = "false"  # tests must not hit Nominatim/OSRM
 
 import pytest
 from fastapi.testclient import TestClient
@@ -23,6 +24,11 @@ def client():
 
 @pytest.fixture()
 def auth_headers(client):
-    r = client.post("/auth/register", json={"name": "Test", "email": "t@example.com", "password": "secret123"})
-    assert r.status_code == 201
+    from app.config import get_settings
+
+    s = get_settings()
+    ident = s.test_user_email
+    assert client.post("/auth/otp/request", json={"identifier": ident}).status_code == 200
+    r = client.post("/auth/otp/verify", json={"identifier": ident, "otp": s.test_user_otp})
+    assert r.status_code == 200
     return {"Authorization": f"Bearer {r.json()['access_token']}"}

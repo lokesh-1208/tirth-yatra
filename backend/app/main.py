@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .config import get_settings
 from .database import Base, SessionLocal, engine
+from .otp import ensure_test_user
 from .routers import auth, places
 from .seed import seed_places
 
@@ -16,6 +17,7 @@ async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
     with SessionLocal() as db:
         seed_places(db)
+        ensure_test_user(db)
     yield
 
 

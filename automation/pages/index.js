@@ -1,41 +1,48 @@
 const { expect } = require("@playwright/test");
+const { TEST_OTP } = require("../utils/data");
 
 class LoginPage {
   constructor(page) {
     this.page = page;
-    this.email = page.getByTestId("login-email");
-    this.password = page.getByTestId("login-password");
-    this.submit = page.getByTestId("login-submit");
+    this.identifier = page.getByTestId("login-identifier");
+    this.sendOtp = page.getByTestId("login-send-otp");
+    this.otp = page.getByTestId("login-otp");
+    this.verify = page.getByTestId("login-verify");
+    this.sentTo = page.getByTestId("login-sent-to");
     this.error = page.getByTestId("login-error");
-    this.goRegister = page.getByTestId("go-register");
+    this.change = page.getByTestId("login-change");
+    this.resend = page.getByTestId("login-resend");
   }
 
   async goto() {
     await this.page.goto("/");
-    await expect(this.submit).toBeVisible();
+    await expect(this.sendOtp).toBeVisible();
   }
 
-  async login(email, password) {
-    await this.email.fill(email);
-    await this.password.fill(password);
-    await this.submit.click();
+  async requestOtp(identifier) {
+    await this.identifier.fill(identifier);
+    await this.sendOtp.click();
+  }
+
+  async login(identifier, otp = TEST_OTP) {
+    await this.requestOtp(identifier);
+    await expect(this.otp).toBeVisible();
+    await this.otp.fill(otp);
+    await this.verify.click();
   }
 }
 
-class RegisterPage {
+/** Shown once after the first OTP login of a brand-new account. */
+class OnboardingPage {
   constructor(page) {
     this.page = page;
-    this.name = page.getByTestId("register-name");
-    this.email = page.getByTestId("register-email");
-    this.password = page.getByTestId("register-password");
-    this.submit = page.getByTestId("register-submit");
-    this.error = page.getByTestId("register-error");
+    this.name = page.getByTestId("onboarding-name");
+    this.submit = page.getByTestId("onboarding-submit");
+    this.error = page.getByTestId("onboarding-error");
   }
 
-  async register({ name, email, password, sect }) {
+  async complete({ name, sect }) {
     await this.name.fill(name);
-    await this.email.fill(email);
-    await this.password.fill(password);
     if (sect) await this.page.getByTestId(`sect-${sect}`).click();
     await this.submit.click();
   }
@@ -61,4 +68,4 @@ class AppShell {
   }
 }
 
-module.exports = { LoginPage, RegisterPage, AppShell };
+module.exports = { LoginPage, OnboardingPage, AppShell };

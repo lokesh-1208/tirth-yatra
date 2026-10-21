@@ -1,14 +1,20 @@
 from datetime import date
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
-class UserCreate(BaseModel):
-    name: str = Field(min_length=1, max_length=120)
-    email: EmailStr
-    password: str = Field(min_length=6, max_length=128)
-    faith: str | None = None
-    sect: str | None = None
+class OtpRequest(BaseModel):
+    identifier: str = Field(min_length=3, max_length=255)  # email or phone
+
+
+class OtpVerify(OtpRequest):
+    otp: str = Field(min_length=4, max_length=8)
+
+
+class OtpSent(BaseModel):
+    message: str
+    identifier: str  # normalized
+    expires_in_seconds: int
 
 
 class UserUpdate(BaseModel):
@@ -22,8 +28,9 @@ class UserOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
-    name: str
-    email: EmailStr
+    name: str | None = None
+    email: str | None = None
+    phone: str | None = None
     faith: str | None = None
     sect: str | None = None
     language: str = "en"
@@ -33,6 +40,7 @@ class Token(BaseModel):
     access_token: str
     token_type: str = "bearer"
     user: UserOut
+    is_new_user: bool = False
 
 
 class PlaceOut(BaseModel):
@@ -62,9 +70,20 @@ class RoutePlace(PlaceOut):
     distance_from_start_km: float
 
 
+class GeoPointOut(BaseModel):
+    label: str
+    lat: float
+    lng: float
+
+
 class RouteResult(BaseModel):
     start: str
     end: str
+    start_point: GeoPointOut
+    end_point: GeoPointOut
     total_km: float
+    duration_min: float | None = None
+    source: str = "straight"  # "road" when a real road route was found
+    geometry: list[tuple[float, float]] = []  # (lat, lng) polyline for drawing the route
     max_detour_km: float
     places: list[RoutePlace]

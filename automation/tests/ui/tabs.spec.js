@@ -1,13 +1,15 @@
 const { test, expect } = require("@playwright/test");
-const { LoginPage, RegisterPage, AppShell } = require("../../pages");
-const { uniqueEmail, PASSWORD } = require("../../utils/data");
+const { LoginPage, AppShell } = require("../../pages");
+const { uniqueEmail } = require("../../utils/data");
+const { loginViaApi } = require("../../utils/api");
 
 test.describe("Tabs (web UI)", () => {
-  test.beforeEach(async ({ page }) => {
+  test.beforeEach(async ({ page, request }) => {
+    // Fresh, already-onboarded user per test so saved places never leak between tests.
+    const { email } = await loginViaApi(request, { email: uniqueEmail("ui"), name: "Tab Tester" });
     const login = new LoginPage(page);
     await login.goto();
-    await login.goRegister.click();
-    await new RegisterPage(page).register({ name: "Tab Tester", email: uniqueEmail("ui"), password: PASSWORD });
+    await login.login(email);
     await new AppShell(page).expectLoggedIn();
   });
 
@@ -33,13 +35,37 @@ test.describe("Tabs (web UI)", () => {
     await page.getByTestId("route-submit").click();
 
     await expect(page.getByTestId("route-summary")).toContainText("Jabalpur → Nemawar");
-    await expect(page.locator('[data-testid^="place-card-"]').first()).toBeVisible();
-    await expect(page.locator('[data-testid^="place-card-"]').first()).toContainText("km detour");
+    const first = page.getByTestId("route-list").locator('[data-testid^="place-card-"]').first();
+    await expect(first).toBeVisible();
+    await expect(first).toContainText("km detour");
+  });
+
+  test("Plan Route shows a map with the route and a pin per place", async ({ page }) => {
+    await new AppShell(page).open("plan");
+    await page.getByTestId("route-start").fill("Jabalpur");
+    await page.getByTestId("route-end").fill("Nemawar");
+    await page.getByTestId("detour-50").click();
+    await page.getByTestId("route-submit").click();
+
+    await expect(page.getByTestId("route-map")).toBeVisible();
+    const map = page.frameLocator('[data-testid="route-map"]');
+    await expect(map.locator(".leaflet-container")).toBeVisible();
+    await expect(map.locator(".leaflet-overlay-pane path")).toHaveCount(1); // route line
+    const cards = await page.getByTestId("route-list").locator('[data-testid^="place-card-"]').count();
+    await expect(map.locator(".leaflet-marker-icon")).toHaveCount(cards + 2); // + start and end
+  });
+
+  test("location fields suggest places and a suggestion can be picked", async ({ page }) => {
+    await new AppShell(page).open("plan");
+    await page.getByTestId("route-start").fill("jabal");
+    await page.getByTestId("route-start-suggestion-0").click();
+    await expect(page.getByTestId("route-start")).toHaveValue(/Jabalpur/);
+    await expect(page.getByTestId("route-start-suggestions")).toHaveCount(0);
   });
 
   test("Plan Route shows an error for an unknown city", async ({ page }) => {
     await new AppShell(page).open("plan");
-    await page.getByTestId("route-start").fill("Atlantis");
+    await page.getByTestId("route-start").fill("Zzqxwvk");
     await page.getByTestId("route-end").fill("Nemawar");
     await page.getByTestId("route-submit").click();
     await expect(page.getByTestId("route-error")).toContainText("Unknown start location");
@@ -54,14 +80,17 @@ test.describe("Tabs (web UI)", () => {
     const firstCard = page.locator('[data-testid^="place-card-"]').first();
     await expect(firstCard).toBeVisible();
     const placeName = (await firstCard.locator("text=/./").first().innerText()).trim();
+    // Wait for the save request to finish, otherwise Saved may load before the server has it.
+    const saved = page.waitForResponse((r) => r.url().includes("/save") && r.request().method() === "POST");
     await page.locator('[data-testid^="save-btn-"]').first().click();
+    await saved;
 
     await shell.open("saved");
     const savedCards = page.getByTestId("saved-list").locator('[data-testid^="place-card-"]');
     await expect(savedCards).toHaveCount(1);
     await expect(savedCards.first()).toContainText(placeName);
 
-    await page.locator('[data-testid^="save-btn-"]').first().click();
+    await page.getByTestId("saved-list").locator('[data-testid^="save-btn-"]').first().click();
     await expect(page.getByText("Nothing saved yet")).toBeVisible();
   });
 

@@ -1,7 +1,8 @@
 export type User = {
   id: number;
-  name: string;
-  email: string;
+  name: string | null;
+  email: string | null;
+  phone: string | null;
   faith: string | null;
   sect: string | null;
   language: string;
@@ -29,12 +30,20 @@ export type Place = {
 
 export type RoutePlace = Place & { detour_km: number; distance_from_start_km: number };
 
+export type GeoPoint = { label: string; lat: number; lng: number };
+
 export type RouteResult = {
   start: string;
   end: string;
+  start_point: GeoPoint;
+  end_point: GeoPoint;
   total_km: number;
+  duration_min: number | null;
+  source: "road" | "straight";
+  geometry: [number, number][]; // (lat, lng) polyline
   max_detour_km: number;
   places: RoutePlace[];
 };
 
-export type AuthResponse = { access_token: string; token_type: string; user: User };
+export type AuthResponse = { access_token: string; token_type: string; user: User; is_new_user: boolean };
+export type OtpSent = { message: string; identifier: string; expires_in_seconds: number };

@@ -10,15 +10,28 @@ class User(Base):
     __tablename__ = "users"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    email: Mapped[str] = mapped_column(String(255), unique=True, index=True)
-    name: Mapped[str] = mapped_column(String(120))
-    hashed_password: Mapped[str] = mapped_column(String(255))
+    email: Mapped[str | None] = mapped_column(String(255), unique=True, index=True, nullable=True)
+    phone: Mapped[str | None] = mapped_column(String(20), unique=True, index=True, nullable=True)
+    name: Mapped[str | None] = mapped_column(String(120), nullable=True)
     faith: Mapped[str | None] = mapped_column(String(40), nullable=True)
     sect: Mapped[str | None] = mapped_column(String(40), nullable=True)
     language: Mapped[str] = mapped_column(String(10), default="en")
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
     saved: Mapped[list["SavedPlace"]] = relationship(back_populates="user", cascade="all, delete-orphan")
+
+
+class OtpCode(Base):
+    """One-time login code. `identifier` is a normalized email or +E.164 phone."""
+
+    __tablename__ = "otp_codes"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    identifier: Mapped[str] = mapped_column(String(255), index=True)
+    code_hash: Mapped[str] = mapped_column(String(64))
+    expires_at: Mapped[datetime] = mapped_column(DateTime)
+    attempts: Mapped[int] = mapped_column(Integer, default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
 
 class Place(Base):

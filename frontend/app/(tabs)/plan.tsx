@@ -1,18 +1,31 @@
+import { useRouter } from "expo-router";
 import { useState } from "react";
 import { ActivityIndicator, FlatList, StyleSheet, Text, View } from "react-native";
 
 import { api } from "../../src/api";
+import { LocationInput } from "../../src/LocationInput";
 import { PlaceCard } from "../../src/PlaceCard";
+import { RouteMap } from "../../src/RouteMap";
 import { colors, spacing } from "../../src/theme";
-import type { RouteResult } from "../../src/types";
-import { Button, Chip, Empty, ErrorText, Input } from "../../src/ui";
+import type { GeoPoint, RouteResult } from "../../src/types";
+import { Button, Chip, Empty, ErrorText } from "../../src/ui";
 
 const DETOURS = [10, 25, 50];
+
+const formatDuration = (min: number) => {
+  const h = Math.floor(min / 60);
+  const m = Math.round(min % 60);
+  return h ? `${h}h ${m}m drive` : `${m}m drive`;
+};
 
 export default function PlanRoute() {
   const [start, setStart] = useState("");
   const [end, setEnd] = useState("");
+  const [startPoint, setStartPoint] = useState<GeoPoint | null>(null);
+  const [endPoint, setEndPoint] = useState<GeoPoint | null>(null);
   const [detour, setDetour] = useState(25);
+  const [labels, setLabels] = useState<{ start: string; end: string } | null>(null); // names shown in the summary
+  const router = useRouter();
   const [result, setResult] = useState<RouteResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -22,7 +35,11 @@ export default function PlanRoute() {
     if (!start.trim() || !end.trim()) return setError("Enter both a start and a destination.");
     setLoading(true);
     try {
-      setResult(await api.route({ start: start.trim(), end: end.trim(), max_detour_km: detour }));
+      // A picked suggestion is sent as exact coordinates so the backend doesn't re-guess an ambiguous name.
+      const at = (p: GeoPoint | null, text: string) => (p ? `${p.lat},${p.lng}` : text.trim());
+      const res = await api.route({ start: at(startPoint, start), end: at(endPoint, end), max_detour_km: detour });
+      setLabels({ start: startPoint?.label ?? res.start, end: endPoint?.label ?? res.end });
+      setResult(res);
     } catch (e: any) {
       setResult(null);
       setError(e.message);
@@ -53,8 +70,22 @@ export default function PlanRoute() {
       keyboardShouldPersistTaps="handled"
       ListHeaderComponent={
         <View>
-          <Input testID="route-start" label="From" value={start} onChangeText={setStart} placeholder="e.g. Jabalpur" />
-          <Input testID="route-end" label="To" value={end} onChangeText={setEnd} placeholder="e.g. Nemawar" />
+          <LocationInput
+            testID="route-start"
+            label="From"
+            value={start}
+            onChangeText={setStart}
+            onPick={setStartPoint}
+            placeholder="e.g. Jabalpur"
+          />
+          <LocationInput
+            testID="route-end"
+            label="To"
+            value={end}
+            onChangeText={setEnd}
+            onPick={setEndPoint}
+            placeholder="e.g. Palitana"
+          />
           <Text style={styles.label}>Max detour from the route</Text>
           <View style={{ flexDirection: "row", marginBottom: spacing.md }}>
             {DETOURS.map((d) => (
@@ -65,10 +96,16 @@ export default function PlanRoute() {
           <Button testID="route-submit" title="Find places on my route" onPress={search} loading={loading} />
           {loading && <ActivityIndicator color={colors.primary} style={{ marginTop: spacing.md }} />}
           {result && (
-            <Text testID="route-summary" style={styles.summary}>
-              {result.start} → {result.end} · {result.total_km} km (straight line) · {result.places.length} place
-              {result.places.length === 1 ? "" : "s"} found
-            </Text>
+            <>
+              <Text testID="route-summary" style={styles.summary}>
+                {labels?.start ?? result.start} → {labels?.end ?? result.end} · {result.total_km} km
+                {result.source === "road" ? "" : " (straight line)"}
+                {result.duration_min ? ` · ${formatDuration(result.duration_min)}` : ""} · {result.places.length} place
+                {result.places.length === 1 ? "" : "s"} found
+              </Text>
+              <RouteMap route={result} places={result.places} onSelectPlace={(id) => router.push(`/place/${id}`)} />
+              <View style={{ height: spacing.md }} />
+            </>
           )}
         </View>
       }

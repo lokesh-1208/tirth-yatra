@@ -1,19 +1,18 @@
-import { Link } from "expo-router";
 import { useState } from "react";
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from "react-native";
 
-import { useAuth } from "../../src/auth";
-import { colors, spacing } from "../../src/theme";
-import { Button, Chip, ErrorText, Input } from "../../src/ui";
+import { api } from "../src/api";
+import { useAuth } from "../src/auth";
+import { colors, spacing } from "../src/theme";
+import { Button, Chip, ErrorText, Input } from "../src/ui";
 
 const FAITHS = ["jain", "hindu", "sikh", "muslim", "buddhist", "christian"];
 const JAIN_SECTS = ["digambar", "shvetambar"];
 
-export default function Register() {
-  const { register } = useAuth();
+// Shown once after the first OTP login, when the account has no name yet.
+export default function Onboarding() {
+  const { setUser, logout } = useAuth();
   const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [faith, setFaith] = useState<string | undefined>("jain");
   const [sect, setSect] = useState<string | undefined>();
   const [error, setError] = useState("");
@@ -22,13 +21,11 @@ export default function Register() {
   const submit = async () => {
     setError("");
     if (!name.trim()) return setError("Please enter your name.");
-    if (!/^\S+@\S+\.\S+$/.test(email.trim())) return setError("Please enter a valid email.");
-    if (password.length < 6) return setError("Password must be at least 6 characters.");
     setLoading(true);
     try {
-      await register({ name: name.trim(), email, password, faith, sect: faith === "jain" ? sect : undefined });
+      setUser(await api.updateMe({ name: name.trim(), faith, sect: faith === "jain" ? sect : undefined }));
     } catch (e: any) {
-      setError(e.message ?? "Registration failed");
+      setError(e.message ?? "Could not save profile");
     } finally {
       setLoading(false);
     }
@@ -38,27 +35,12 @@ export default function Register() {
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
         <View style={styles.form}>
-          <Text style={styles.title}>Create account</Text>
-          <Text style={styles.subtitle}>Tell us your faith so we show the right places first</Text>
+          <Text style={styles.title}>Welcome 🙏</Text>
+          <Text style={styles.subtitle}>Tell us a little about you so we show the right places first</Text>
 
-          <ErrorText testID="register-error">{error}</ErrorText>
+          <ErrorText testID="onboarding-error">{error}</ErrorText>
 
-          <Input testID="register-name" label="Name" value={name} onChangeText={setName} autoCapitalize="words" />
-          <Input
-            testID="register-email"
-            label="Email"
-            value={email}
-            onChangeText={setEmail}
-            keyboardType="email-address"
-            autoComplete="email"
-          />
-          <Input
-            testID="register-password"
-            label="Password (min 6 characters)"
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-          />
+          <Input testID="onboarding-name" label="Your name" value={name} onChangeText={setName} autoCapitalize="words" />
 
           <Text style={styles.label}>Faith</Text>
           <View style={styles.chips}>
@@ -94,14 +76,10 @@ export default function Register() {
           )}
 
           <View style={{ height: spacing.md }} />
-          <Button testID="register-submit" title="Sign up" onPress={submit} loading={loading} />
-
-          <View style={styles.footer}>
-            <Text style={{ color: colors.muted }}>Already have an account? </Text>
-            <Link testID="go-login" href="/login" style={{ color: colors.primary, fontWeight: "700" }}>
-              Log in
-            </Link>
-          </View>
+          <Button testID="onboarding-submit" title="Continue" onPress={submit} loading={loading} />
+          <Text testID="onboarding-logout" onPress={logout} style={styles.logout}>
+            Use a different account
+          </Text>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -115,5 +93,5 @@ const styles = StyleSheet.create({
   subtitle: { color: colors.muted, marginBottom: spacing.lg, marginTop: 4 },
   label: { fontSize: 13, fontWeight: "600", color: colors.text, marginBottom: 8 },
   chips: { flexDirection: "row", flexWrap: "wrap", rowGap: 8, marginBottom: spacing.md },
-  footer: { flexDirection: "row", justifyContent: "center", marginTop: spacing.lg },
+  logout: { textAlign: "center", color: colors.muted, marginTop: spacing.lg },
 });
