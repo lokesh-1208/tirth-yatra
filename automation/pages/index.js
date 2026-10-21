@@ -54,6 +54,7 @@ class AppShell {
     this.tabs = {
       explore: page.getByTestId("tab-explore"),
       plan: page.getByTestId("tab-plan"),
+      yatras: page.getByTestId("tab-yatras"),
       saved: page.getByTestId("tab-saved"),
       profile: page.getByTestId("tab-profile"),
     };

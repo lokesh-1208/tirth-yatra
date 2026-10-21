@@ -1,15 +1,19 @@
 import { useEffect, useState } from "react";
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { Card, Text } from "react-native-paper";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { api } from "../../src/api";
 import { useAuth } from "../../src/auth";
-import { colors, spacing } from "../../src/theme";
-import { Button, ErrorText, Input } from "../../src/ui";
+import { colors, fontFamily, radius, spacing } from "../../src/theme";
+import { Button, ErrorText, Hero, Input } from "../../src/ui";
 
 const RESEND_SECONDS = 30;
 
 export default function Login() {
   const { verifyOtp } = useAuth();
+  const insets = useSafeAreaInsets();
   const [identifier, setIdentifier] = useState("");
   const [sentTo, setSentTo] = useState<string | null>(null); // normalized identifier once OTP requested
   const [otp, setOtp] = useState("");
@@ -54,11 +58,21 @@ export default function Login() {
 
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
-      <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-        <View style={styles.form}>
-          <Text style={styles.logo}>🛕</Text>
-          <Text style={styles.title}>Tirth Yatra</Text>
+      <ScrollView contentContainerStyle={{ flexGrow: 1 }} keyboardShouldPersistTaps="handled">
+        <Hero style={[styles.hero, { paddingTop: insets.top + spacing.xl }]}>
+          <View style={styles.logo}>
+            <MaterialCommunityIcons name="hands-pray" size={40} color="#fff" />
+          </View>
+          <Text variant="displaySmall" style={styles.title}>
+            Tirth Yatra
+          </Text>
           <Text style={styles.subtitle}>Discover holy places along your journey</Text>
+        </Hero>
+        <Card mode="elevated" elevation={2} style={styles.form}>
+          <Card.Content>
+          <Text variant="titleLarge" style={{ marginBottom: spacing.md }}>
+            {sentTo ? "Verify it's you" : "Login or sign up"}
+          </Text>
 
           <ErrorText testID="login-error">{error}</ErrorText>
 
@@ -73,6 +87,7 @@ export default function Login() {
                 autoCapitalize="none"
                 autoComplete="email"
                 placeholder="you@example.com or 98XXXXXXXX"
+                left="account-outline"
                 onSubmitEditing={sendOtp}
               />
               <Button testID="login-send-otp" title="Send OTP" onPress={sendOtp} loading={loading} />
@@ -92,6 +107,7 @@ export default function Login() {
                 autoComplete="one-time-code"
                 placeholder="6-digit code"
                 maxLength={6}
+                left="lock-outline"
                 onSubmitEditing={confirm}
               />
               <Button testID="login-verify" title="Verify & log in" onPress={confirm} loading={loading} />
@@ -113,20 +129,39 @@ export default function Login() {
               </View>
             </>
           )}
-        </View>
+          </Card.Content>
+        </Card>
+        <Text style={styles.footer}>🙏 Jai Jinendra</Text>
       </ScrollView>
     </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flexGrow: 1, justifyContent: "center", padding: spacing.lg },
-  form: { width: "100%", maxWidth: 420, alignSelf: "center" },
-  logo: { fontSize: 48, textAlign: "center" },
-  title: { fontSize: 28, fontWeight: "800", textAlign: "center", color: colors.primaryDark },
-  subtitle: { textAlign: "center", color: colors.muted, marginBottom: spacing.lg, marginTop: 4 },
+  hero: { alignItems: "center", paddingBottom: 72 },
+  logo: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: "rgba(255,255,255,0.18)",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: spacing.md,
+  },
+  form: {
+    width: "92%",
+    maxWidth: 440,
+    alignSelf: "center",
+    marginTop: -48,
+    borderRadius: radius.xl,
+    backgroundColor: colors.card,
+    paddingVertical: spacing.sm,
+  },
+  title: { textAlign: "center", color: "#fff" },
+  subtitle: { textAlign: "center", color: "rgba(255,255,255,0.9)", marginTop: 4, fontSize: 16 },
   hint: { textAlign: "center", color: colors.muted, marginTop: spacing.md, fontSize: 13 },
-  sentTo: { color: colors.text, marginBottom: spacing.md, fontWeight: "600" },
+  sentTo: { color: colors.text, marginBottom: spacing.md, fontFamily: fontFamily.semibold },
   row: { flexDirection: "row", justifyContent: "space-between", marginTop: spacing.lg },
-  link: { color: colors.primary, fontWeight: "700" },
+  link: { color: colors.primary, fontFamily: fontFamily.bold },
+  footer: { textAlign: "center", color: colors.muted, marginVertical: spacing.lg },
 });

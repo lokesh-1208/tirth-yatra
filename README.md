@@ -68,6 +68,30 @@ SLA). Before real traffic, self-host them or swap the providers: set `NOMINATIM_
 (`backend/.env`), or replace `app/geocoding.py` / `app/routing.py`. `EXTERNAL_GEO_ENABLED=false` turns both off.
 The map is Leaflet with OpenStreetMap tiles (also light-use; use a tile provider for production).
 
+## App structure (UI)
+Built with **React Native Paper** (Material Design 3). Colours, fonts and spacing live in
+`frontend/src/theme.ts` (saffron / deep blue / gold, **Mukta** for text, **Tiro Devanagari Hindi** for titles);
+shared building blocks (`Button`, `Input`, `Chip`, `Hero`, `PageHeader`, `Pill`, `Empty`, `Placeholder`) are in
+`frontend/src/ui.tsx`. Every interactive element keeps a `testID` for the Playwright suite.
+
+| Screen | File | Notes |
+|---|---|---|
+| Login / OTP, Onboarding | `app/(auth)/login.tsx`, `app/onboarding.tsx` | |
+| **Explore** tab | `app/(tabs)/index.tsx` | search, browse by type, Parv & Utsav (placeholder), sect filter |
+| **Plan Route** tab | `app/(tabs)/plan.tsx` | From/To with suggestions, swap, detour, map, **Save as yatra** |
+| **My Yatras** tab | `app/(tabs)/yatras.tsx`, `app/yatra/[id].tsx` | saved trips, stop timeline with visited checkboxes, rename, delete |
+| **Saved** tab | `app/(tabs)/saved.tsx` | bookmarked places |
+| **Profile** tab | `app/(tabs)/profile.tsx` | stats, faith/sect, settings, help, about, logout |
+| Place detail | `app/place/[id].tsx` | quick actions (save, directions, call, share) + About / Darshan / Stay / Bhojan / Reach |
+| Settings | `app/settings/language.tsx`, `help.tsx`, `about.tsx` | |
+
+**Placeholders to fill with real data later** (the UI shows "Not added yet" until then):
+- Place fields `darshan_timings`, `contact_phone`, `stay_info`, `food_info`, `photo_url` (backend `Place` model).
+  Existing `tirth.db` files get the new columns automatically on startup (`add_missing_columns`).
+- Festival dates on Explore (`FESTIVALS` in `app/(tabs)/index.tsx`).
+- Hindi UI translation (the language choice is already saved on the account).
+- Yatras are stored on the device (`src/yatras.tsx`); backend sync is a TODO.
+
 ## Data note
 `backend/app/seed.py` contains **sample, unverified** entries so the app has something to show.
 Every place has a `verified` flag and `verified_by` / `verified_on` fields – only mark a place
@@ -80,5 +104,7 @@ verified after you have confirmed it by call or local reference.
 - [x] Route search (places within X km of the A→B line)
 - [x] Real geocoding (Nominatim) + road routes (OSRM) + route map (Leaflet / OpenStreetMap)
 - [ ] PostGIS corridor query
-- [ ] Photos, regional languages (i18n), sect filter UI
+- [x] Material Design 3 UI (React Native Paper), full tab structure, My Yatras (on device)
+- [ ] Photos, regional languages (i18n)
+- [ ] Sync My Yatras to the backend
 - [ ] Admin panel to add and verify places

@@ -1,14 +1,17 @@
 import { useEffect, useRef, useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
+import { Pressable, StyleSheet, View } from "react-native";
+import { Text } from "react-native-paper";
 
 import { api } from "./api";
-import { colors, spacing } from "./theme";
+import { colors, radius, spacing } from "./theme";
 import type { GeoPoint } from "./types";
 import { Input } from "./ui";
 
 type Props = {
   testID: string;
   label: string;
+  icon?: string;
   placeholder?: string;
   value: string;
   onChangeText: (text: string) => void;
@@ -17,7 +20,7 @@ type Props = {
 };
 
 // Text field with place-name suggestions (backend /geocode -> Nominatim). Typing freely still works.
-export function LocationInput({ testID, label, placeholder, value, onChangeText, onPick }: Props) {
+export function LocationInput({ testID, label, icon = "map-marker-outline", placeholder, value, onChangeText, onPick }: Props) {
   const [suggestions, setSuggestions] = useState<GeoPoint[]>([]);
   const justPicked = useRef(false);
   const seq = useRef(0);
@@ -49,6 +52,7 @@ export function LocationInput({ testID, label, placeholder, value, onChangeText,
       <Input
         testID={testID}
         label={label}
+        left={icon}
         value={value}
         placeholder={placeholder}
         autoCorrect={false}
@@ -71,7 +75,10 @@ export function LocationInput({ testID, label, placeholder, value, onChangeText,
                 onPick(s);
               }}
             >
-              <Text style={{ color: colors.text }}>{s.label}</Text>
+              <MaterialCommunityIcons name="map-marker" size={18} color={colors.primary} />
+              <Text style={{ color: colors.text, marginLeft: spacing.sm, flex: 1 }} numberOfLines={2}>
+                {s.label}
+              </Text>
             </Pressable>
           ))}
         </View>
@@ -87,8 +94,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.card,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: 10,
+    borderRadius: radius.md,
     overflow: "hidden",
   },
-  item: { paddingVertical: 10, paddingHorizontal: spacing.md, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },
+  item: { flexDirection: "row", alignItems: "center", paddingVertical: 12, paddingHorizontal: spacing.md, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },
 });

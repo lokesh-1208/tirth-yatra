@@ -50,6 +50,11 @@ class Place(Base):
     longitude: Mapped[float] = mapped_column(Float)
     how_to_reach: Mapped[str | None] = mapped_column(Text, nullable=True)
     photo_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    # Detail tabs in the app. Left empty until verified; the app shows "Not added yet".
+    darshan_timings: Mapped[str | None] = mapped_column(Text, nullable=True)
+    contact_phone: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    stay_info: Mapped[str | None] = mapped_column(Text, nullable=True)
+    food_info: Mapped[str | None] = mapped_column(Text, nullable=True)
     verified: Mapped[bool] = mapped_column(Boolean, default=False)
     verified_by: Mapped[str | None] = mapped_column(String(120), nullable=True)
     verified_on: Mapped[date | None] = mapped_column(Date, nullable=True)

@@ -59,6 +59,10 @@ class PlaceOut(BaseModel):
     longitude: float
     how_to_reach: str | None = None
     photo_url: str | None = None
+    darshan_timings: str | None = None
+    contact_phone: str | None = None
+    stay_info: str | None = None
+    food_info: str | None = None
     verified: bool
     verified_by: str | None = None
     verified_on: date | None = None
