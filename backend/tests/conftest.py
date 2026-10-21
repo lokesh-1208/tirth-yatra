@@ -2,6 +2,7 @@ import os
 
 os.environ["DATABASE_URL"] = "sqlite:///:memory:"
 os.environ["SECRET_KEY"] = "test-secret"
+os.environ["EXTERNAL_GEO_ENABLED"] = "false"  # tests must not hit Nominatim/OSRM
 
 import pytest
 from fastapi.testclient import TestClient

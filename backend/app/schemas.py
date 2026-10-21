@@ -70,9 +70,20 @@ class RoutePlace(PlaceOut):
     distance_from_start_km: float
 
 
+class GeoPointOut(BaseModel):
+    label: str
+    lat: float
+    lng: float
+
+
 class RouteResult(BaseModel):
     start: str
     end: str
+    start_point: GeoPointOut
+    end_point: GeoPointOut
     total_km: float
+    duration_min: float | None = None
+    source: str = "straight"  # "road" when a real road route was found
+    geometry: list[tuple[float, float]] = []  # (lat, lng) polyline for drawing the route
     max_detour_km: float
     places: list[RoutePlace]

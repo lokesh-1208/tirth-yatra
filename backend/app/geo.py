@@ -1,4 +1,5 @@
 import math
+from collections.abc import Sequence
 
 EARTH_RADIUS_KM = 6371.0088
 
@@ -53,6 +54,53 @@ def project_on_segment(
     dist = math.hypot(px - cx, py - cy)
     along = t * math.sqrt(seg_len_sq)
     return dist, along
+
+
+def project_on_polyline(
+    plat: float, plon: float, points: "Sequence[tuple[float, float]]", cumulative_km: "Sequence[float]"
+) -> tuple[float, float]:
+    """Return (distance_from_route_km, distance_from_start_along_route_km) for a place.
+
+    `points` are (lat, lng); `cumulative_km[i]` is the route length up to points[i].
+    """
+    best_dist, best_along = float("inf"), 0.0
+    for i in range(len(points) - 1):
+        (alat, alon), (blat, blon) = points[i], points[i + 1]
+        # Cheap reject: skip segments clearly farther than the best so far (0.01 deg ~ 1.1 km).
+        if best_dist < 1e8:
+            margin = best_dist / 100 + 0.02
+            if (
+                plat < min(alat, blat) - margin
+                or plat > max(alat, blat) + margin
+                or plon < min(alon, blon) - margin
+                or plon > max(alon, blon) + margin
+            ):
+                continue
+        dist, along = project_on_segment(plat, plon, alat, alon, blat, blon)
+        if dist < best_dist:
+            best_dist, best_along = dist, cumulative_km[i] + along
+    return best_dist, best_along
+
+
+def cumulative_lengths(points: "Sequence[tuple[float, float]]") -> list[float]:
+    out = [0.0]
+    for i in range(1, len(points)):
+        out.append(out[-1] + haversine_km(*points[i - 1], *points[i]))
+    return out
+
+
+def parse_coordinates(text: str) -> tuple[str, float, float] | None:
+    """Parse 'lat,lng'. Returns (label, lat, lng) or None if it is not a coordinate pair."""
+    if "," not in text:
+        return None
+    try:
+        lat_s, lng_s = text.split(",", 1)
+        lat, lng = float(lat_s), float(lng_s)
+    except ValueError:
+        return None
+    if -90 <= lat <= 90 and -180 <= lng <= 180:
+        return f"{lat:.4f},{lng:.4f}", lat, lng
+    return None
 
 
 def resolve_location(text: str) -> tuple[str, float, float] | None:

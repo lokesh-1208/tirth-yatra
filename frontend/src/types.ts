@@ -30,10 +30,17 @@ export type Place = {
 
 export type RoutePlace = Place & { detour_km: number; distance_from_start_km: number };
 
+export type GeoPoint = { label: string; lat: number; lng: number };
+
 export type RouteResult = {
   start: string;
   end: string;
+  start_point: GeoPoint;
+  end_point: GeoPoint;
   total_km: number;
+  duration_min: number | null;
+  source: "road" | "straight";
+  geometry: [number, number][]; // (lat, lng) polyline
   max_detour_km: number;
   places: RoutePlace[];
 };

@@ -1,4 +1,4 @@
-import type { AuthResponse, OtpSent, Place, RouteResult, User } from "./types";
+import type { AuthResponse, GeoPoint, OtpSent, Place, RouteResult, User } from "./types";
 
 export const API_URL = (process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:8000").replace(/\/$/, "");
 
@@ -67,6 +67,7 @@ export const api = {
   saved: () => request<Place[]>("/places/saved"),
   save: (id: number) => request<void>(`/places/${id}/save`, { method: "POST" }),
   unsave: (id: number) => request<void>(`/places/${id}/save`, { method: "DELETE" }),
+  geocode: (q: string) => request<GeoPoint[]>(`/geocode${qs({ q })}`),
   route: (params: { start: string; end: string; max_detour_km?: number; sect?: string }) =>
     request<RouteResult>(`/route${qs(params)}`),
 };

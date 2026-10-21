@@ -59,10 +59,13 @@ def test_new_user_created_on_first_otp(client, monkeypatch):
     assert r.json()["name"] == "Asha"
 
 
-def test_otp_is_single_use(client):
-    assert _otp_login(client, S.test_user_email).status_code == 200
-    r = client.post("/auth/otp/verify", json={"identifier": S.test_user_email, "otp": S.test_user_otp})
-    assert r.status_code == 401
+def test_otp_is_single_use(client, monkeypatch):
+    sent = {}
+    monkeypatch.setattr("app.otp.send_otp", lambda ident, code: sent.update(code=code))
+    client.post("/auth/otp/request", json={"identifier": "once@example.com"})
+    body = {"identifier": "once@example.com", "otp": sent["code"]}
+    assert client.post("/auth/otp/verify", json=body).status_code == 200
+    assert client.post("/auth/otp/verify", json=body).status_code == 401
 
 
 def test_resend_throttled_for_real_users(client):
@@ -92,3 +95,9 @@ def test_update_profile(client, auth_headers):
     r = client.patch("/auth/me", json={"faith": "jain", "sect": "digambar"}, headers=auth_headers)
     assert r.status_code == 200
     assert r.json()["sect"] == "digambar"
+
+
+def test_test_user_otp_is_stateless_and_reusable(client):
+    for _ in range(3):  # no request needed, never consumed
+        r = client.post("/auth/otp/verify", json={"identifier": S.test_user_email, "otp": S.test_user_otp})
+        assert r.status_code == 200

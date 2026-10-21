@@ -57,6 +57,17 @@ console (`app/otp.py: send_otp`) until an SMS/email provider is wired in.
 
 If you ran an earlier version, delete `backend/tirth.db` once (the users table changed).
 
+## Route search, geocoding and map
+`/route` geocodes both ends with **Nominatim**, gets the driving route from **OSRM**, and returns places
+within the chosen distance of the *road* (not a straight line), ordered along the trip, plus the route
+polyline for the map. `/geocode?q=` powers the autocomplete. If either service is unreachable it falls
+back to the built-in city list / a straight line (`source: "straight"` in the response).
+
+The public Nominatim and OSRM servers are **free but for light use only** (about 1 request/second, no
+SLA). Before real traffic, self-host them or swap the providers: set `NOMINATIM_URL` / `OSRM_URL`
+(`backend/.env`), or replace `app/geocoding.py` / `app/routing.py`. `EXTERNAL_GEO_ENABLED=false` turns both off.
+The map is Leaflet with OpenStreetMap tiles (also light-use; use a tile provider for production).
+
 ## Data note
 `backend/app/seed.py` contains **sample, unverified** entries so the app has something to show.
 Every place has a `verified` flag and `verified_by` / `verified_on` fields – only mark a place
@@ -67,7 +78,7 @@ verified after you have confirmed it by call or local reference.
 - [ ] Real OTP delivery (SMS / email provider)
 - [x] Places list, detail, save/unsave
 - [x] Route search (places within X km of the A→B line)
-- [ ] Real geocoding + road routes (Google Maps / OSRM)
+- [x] Real geocoding (Nominatim) + road routes (OSRM) + route map (Leaflet / OpenStreetMap)
 - [ ] PostGIS corridor query
 - [ ] Photos, regional languages (i18n), sect filter UI
 - [ ] Admin panel to add and verify places

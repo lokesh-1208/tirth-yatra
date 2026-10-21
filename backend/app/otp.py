@@ -84,15 +84,21 @@ def issue_otp(db: Session, identifier: str) -> int:
 
 
 def check_otp(db: Session, identifier: str, code: str) -> bool:
+    """Validate and consume an OTP. Consumption is one atomic DELETE, so concurrent
+    requests can never both succeed with the same code (and never hit a stale row)."""
+    if is_test_identifier(identifier):  # stateless: always valid, so parallel test logins can't clash
+        return hmac.compare_digest(code.strip(), settings.test_user_otp)
     row = db.query(OtpCode).filter(OtpCode.identifier == identifier).order_by(OtpCode.id.desc()).first()
     if not row or row.expires_at < datetime.utcnow() or row.attempts >= settings.otp_max_attempts:
         return False
-    row.attempts += 1
-    ok = hmac.compare_digest(row.code_hash, _hash(identifier, code.strip()))
-    if ok:
-        db.delete(row)
+    rows = db.query(OtpCode).filter(OtpCode.id == row.id)
+    if hmac.compare_digest(row.code_hash, _hash(identifier, code.strip())):
+        consumed = rows.delete(synchronize_session=False)
+        db.commit()
+        return consumed == 1
+    rows.update({OtpCode.attempts: OtpCode.attempts + 1}, synchronize_session=False)
     db.commit()
-    return ok
+    return False
 
 
 def ensure_test_user(db: Session) -> None:
