@@ -1,0 +1,30 @@
+{
+  "expo": {
+    "name": "Tirth Yatra",
+    "slug": "tirth-yatra",
+    "version": "0.1.0",
+    "scheme": "tirthyatra",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": false
+    },
+    "android": {
+      "package": "com.tirthyatra.app"
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "single"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      "expo-asset",
+      "expo-font"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}

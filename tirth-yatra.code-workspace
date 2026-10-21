@@ -1,0 +1,22 @@
+{
+  "folders": [
+    { "name": "backend", "path": "backend" },
+    { "name": "frontend", "path": "frontend" },
+    { "name": "automation", "path": "automation" }
+  ],
+  "settings": {
+    "python.defaultInterpreterPath": "${workspaceFolder:backend}/.venv/bin/python",
+    "python.testing.pytestArgs": ["tests"],
+    "python.testing.pytestEnabled": true,
+    "editor.formatOnSave": true,
+    "files.exclude": { "**/node_modules": true, "**/__pycache__": true, "**/.pytest_cache": true }
+  },
+  "extensions": {
+    "recommendations": [
+      "ms-python.python",
+      "dbaeumer.vscode-eslint",
+      "esbenp.prettier-vscode",
+      "ms-playwright.playwright"
+    ]
+  }
+}
