@@ -100,3 +100,11 @@ def test_geocode_endpoint_offline_fallback(client):
     assert r.status_code == 200
     assert r.json()[0]["label"] == "Jabalpur"
     assert client.get("/geocode", params={"q": "j"}).status_code == 422
+
+
+def test_place_detail_has_placeholder_fields(client, auth_headers):
+    pid = client.get("/places", headers=auth_headers).json()[0]["id"]
+    body = client.get(f"/places/{pid}", headers=auth_headers).json()
+    for field in ("darshan_timings", "contact_phone", "stay_info", "food_info"):
+        assert field in body
+        assert body[field] is None  # sample data: nothing verified yet

@@ -1,22 +1,25 @@
-import { Ionicons } from "@expo/vector-icons";
+import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { Tabs } from "expo-router";
 
-import { colors } from "../../src/theme";
+import { colors, fontFamily } from "../../src/theme";
 
-type IconName = React.ComponentProps<typeof Ionicons>["name"];
+type IconName = React.ComponentProps<typeof MaterialCommunityIcons>["name"];
 
 const icon =
   (name: IconName, outline: IconName) =>
   ({ color, size, focused }: { color: string; size: number; focused: boolean }) =>
-    <Ionicons name={focused ? name : outline} size={size} color={color} />;
+    <MaterialCommunityIcons name={focused ? name : outline} size={size} color={color} />;
 
+// Five tabs (the Material guideline maximum). Each screen draws its own hero header.
 export default function TabsLayout() {
   return (
     <Tabs
       screenOptions={{
+        headerShown: false,
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.muted,
-        headerTitleStyle: { color: colors.text },
+        tabBarLabelStyle: { fontFamily: fontFamily.semibold, fontSize: 12, lineHeight: 16 },
+        tabBarStyle: { backgroundColor: colors.card, borderTopColor: colors.border, height: 68, paddingTop: 6, paddingBottom: 10 },
         sceneStyle: { backgroundColor: colors.bg },
       }}
     >
@@ -26,7 +29,11 @@ export default function TabsLayout() {
       />
       <Tabs.Screen
         name="plan"
-        options={{ title: "Plan Route", tabBarButtonTestID: "tab-plan", tabBarIcon: icon("map", "map-outline") }}
+        options={{ title: "Plan Route", tabBarButtonTestID: "tab-plan", tabBarIcon: icon("map-marker-path", "map-marker-path") }}
+      />
+      <Tabs.Screen
+        name="yatras"
+        options={{ title: "My Yatras", tabBarButtonTestID: "tab-yatras", tabBarIcon: icon("bag-personal", "bag-personal-outline") }}
       />
       <Tabs.Screen
         name="saved"
@@ -34,7 +41,7 @@ export default function TabsLayout() {
       />
       <Tabs.Screen
         name="profile"
-        options={{ title: "Profile", tabBarButtonTestID: "tab-profile", tabBarIcon: icon("person", "person-outline") }}
+        options={{ title: "Profile", tabBarButtonTestID: "tab-profile", tabBarIcon: icon("account-circle", "account-circle-outline") }}
       />
     </Tabs>
   );
