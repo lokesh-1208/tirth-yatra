@@ -1,5 +1,5 @@
 const { test, expect } = require("@playwright/test");
-const { registerViaApi, bearer } = require("../../utils/api");
+const { loginViaApi, bearer } = require("../../utils/api");
 
 test.describe("Places API", () => {
   test("list returns places and none are falsely marked verified", async ({ request }) => {
@@ -34,7 +34,7 @@ test.describe("Places API", () => {
     const [first] = await (await request.get("/places")).json();
     expect((await request.post(`/places/${first.id}/save`)).status()).toBe(401);
 
-    const { token } = await registerViaApi(request);
+    const { token } = await loginViaApi(request);
     const h = bearer(token);
     expect((await request.post(`/places/${first.id}/save`, { headers: h })).status()).toBe(204);
     expect((await request.post(`/places/${first.id}/save`, { headers: h })).status()).toBe(204);
@@ -48,8 +48,8 @@ test.describe("Places API", () => {
 
   test("users cannot see each other's saved places", async ({ request }) => {
     const [first] = await (await request.get("/places")).json();
-    const a = await registerViaApi(request);
-    const b = await registerViaApi(request);
+    const a = await loginViaApi(request);
+    const b = await loginViaApi(request);
     await request.post(`/places/${first.id}/save`, { headers: bearer(a.token) });
     const bSaved = await (await request.get("/places/saved", { headers: bearer(b.token) })).json();
     expect(bSaved).toEqual([]);

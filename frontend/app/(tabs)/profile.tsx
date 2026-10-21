@@ -42,7 +42,7 @@ export default function Profile() {
           {user.name}
         </Text>
         <Text testID="profile-email" style={{ color: colors.muted }}>
-          {user.email}
+          {user.email ?? user.phone}
         </Text>
       </View>
 

@@ -1,7 +1,8 @@
 export type User = {
   id: number;
-  name: string;
-  email: string;
+  name: string | null;
+  email: string | null;
+  phone: string | null;
   faith: string | null;
   sect: string | null;
   language: string;
@@ -37,4 +38,5 @@ export type RouteResult = {
   places: RoutePlace[];
 };
 
-export type AuthResponse = { access_token: string; token_type: string; user: User };
+export type AuthResponse = { access_token: string; token_type: string; user: User; is_new_user: boolean };
+export type OtpSent = { message: string; identifier: string; expires_in_seconds: number };

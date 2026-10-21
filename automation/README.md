@@ -20,7 +20,7 @@ npm run report       # open the HTML report
 Override URLs with `API_URL` and `WEB_URL` (see `.env.example`).
 
 ## Structure
-- `pages/` – Page Object Model classes (`LoginPage`, `RegisterPage`, `AppShell`)
+- `pages/` – Page Object Model classes (`LoginPage`, `OnboardingPage`, `AppShell`)
 - `utils/` – unique test data and API helpers
 - Locators use `testID`s from the app (rendered as `data-testid` on web), so tests don't break when text or styling changes.
 

@@ -1,13 +1,15 @@
 const { test, expect } = require("@playwright/test");
-const { LoginPage, RegisterPage, AppShell } = require("../../pages");
-const { uniqueEmail, PASSWORD } = require("../../utils/data");
+const { LoginPage, AppShell } = require("../../pages");
+const { uniqueEmail } = require("../../utils/data");
+const { loginViaApi } = require("../../utils/api");
 
 test.describe("Tabs (web UI)", () => {
-  test.beforeEach(async ({ page }) => {
+  test.beforeEach(async ({ page, request }) => {
+    // Fresh, already-onboarded user per test so saved places never leak between tests.
+    const { email } = await loginViaApi(request, { email: uniqueEmail("ui"), name: "Tab Tester" });
     const login = new LoginPage(page);
     await login.goto();
-    await login.goRegister.click();
-    await new RegisterPage(page).register({ name: "Tab Tester", email: uniqueEmail("ui"), password: PASSWORD });
+    await login.login(email);
     await new AppShell(page).expectLoggedIn();
   });
 
@@ -61,7 +63,7 @@ test.describe("Tabs (web UI)", () => {
     await expect(savedCards).toHaveCount(1);
     await expect(savedCards.first()).toContainText(placeName);
 
-    await page.locator('[data-testid^="save-btn-"]').first().click();
+    await page.getByTestId("saved-list").locator('[data-testid^="save-btn-"]').first().click();
     await expect(page.getByText("Nothing saved yet")).toBeVisible();
   });
 

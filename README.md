@@ -46,13 +46,25 @@ npm run test:api            # needs backend running
 npm run test:ui             # needs backend + frontend web running
 ```
 
+## Logging in (OTP, no passwords)
+Enter an email or mobile number, get a 6-digit OTP, done. First login creates the account and
+asks for name + faith. There is no password, so nothing to reset: lost access = request a new OTP.
+
+**Dummy test user** (dev only): `test@tirthyatra.app` or `9999999999`, OTP always `999999`.
+Any `*@qa.tirthyatra.app` email also uses `999999` (used by the automation to get isolated users).
+Set `ENABLE_TEST_USER=false` in production. Real OTPs are currently only printed to the backend
+console (`app/otp.py: send_otp`) until an SMS/email provider is wired in.
+
+If you ran an earlier version, delete `backend/tirth.db` once (the users table changed).
+
 ## Data note
 `backend/app/seed.py` contains **sample, unverified** entries so the app has something to show.
 Every place has a `verified` flag and `verified_by` / `verified_on` fields – only mark a place
 verified after you have confirmed it by call or local reference.
 
 ## Roadmap
-- [x] Auth (register / login / me)
+- [x] Auth: passwordless OTP login (email / phone), onboarding, me
+- [ ] Real OTP delivery (SMS / email provider)
 - [x] Places list, detail, save/unsave
 - [x] Route search (places within X km of the A→B line)
 - [ ] Real geocoding + road routes (Google Maps / OSRM)

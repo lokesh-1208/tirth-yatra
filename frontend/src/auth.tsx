@@ -9,8 +9,7 @@ const TOKEN_KEY = "ty_token";
 type AuthState = {
   user: User | null;
   loading: boolean;
-  login: (email: string, password: string) => Promise<void>;
-  register: (data: { name: string; email: string; password: string; faith?: string; sect?: string }) => Promise<void>;
+  verifyOtp: (identifier: string, otp: string) => Promise<void>;
   logout: () => Promise<void>;
   setUser: (u: User) => void;
 };
@@ -57,8 +56,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     () => ({
       user,
       loading,
-      login: async (email, password) => finishAuth(await api.login(email.trim(), password)),
-      register: async (data) => finishAuth(await api.register({ ...data, email: data.email.trim() })),
+      verifyOtp: async (identifier, otp) => finishAuth(await api.verifyOtp(identifier, otp.trim())),
       logout,
       setUser,
     }),

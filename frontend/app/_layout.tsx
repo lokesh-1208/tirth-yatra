@@ -14,8 +14,10 @@ function Gate() {
   useEffect(() => {
     if (loading) return;
     const inAuthGroup = segments[0] === "(auth)";
+    const inOnboarding = segments[0] === "onboarding";
     if (!user && !inAuthGroup) router.replace("/login");
-    else if (user && inAuthGroup) router.replace("/");
+    else if (user && !user.name && !inOnboarding) router.replace("/onboarding");
+    else if (user?.name && (inAuthGroup || inOnboarding)) router.replace("/");
   }, [user, loading, segments, router]);
 
   if (loading) {
@@ -29,6 +31,7 @@ function Gate() {
   return (
     <Stack screenOptions={{ headerTintColor: colors.primary, contentStyle: { backgroundColor: colors.bg } }}>
       <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+      <Stack.Screen name="onboarding" options={{ headerShown: false }} />
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen name="place/[id]" options={{ title: "Place details" }} />
     </Stack>
