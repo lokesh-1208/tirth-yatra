@@ -11,9 +11,10 @@ export type RouteMapProps = {
 
 // Leaflet + OpenStreetMap tiles (no API key). Shared by the web (iframe) and native (WebView) maps.
 // Messages to the host: {type: "open", id}.
-export function buildMapHtml({ route, places }: Pick<RouteMapProps, "route" | "places">): string {
+export function buildMapHtml({ route, places }: Pick<RouteMapProps, "route" | "places">, tileUrl: string): string {
   // JSON inside <script>: escape "<" so a place name can never close the tag.
   const data = JSON.stringify({
+    tiles: tileUrl,
     line: route.geometry,
     start: route.start_point,
     end: route.end_point,
@@ -45,7 +46,7 @@ export function buildMapHtml({ route, places }: Pick<RouteMapProps, "route" | "p
 <script>
   var D = ${data};
   var map = L.map("map", {zoomControl:true, attributionControl:true});
-  L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {maxZoom:18, attribution:"&copy; OpenStreetMap contributors"}).addTo(map);
+  L.tileLayer(D.tiles, {maxZoom:18, attribution:"&copy; OpenStreetMap contributors"}).addTo(map);
   function pin(cls){ return L.divIcon({className:"", html:'<div class="pin '+cls+'"></div>', iconSize:[22,22], iconAnchor:[11,22], popupAnchor:[0,-20]}); }
   function esc(s){ return String(s).replace(/[&<>"]/g, function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]; }); }
   function send(msg){

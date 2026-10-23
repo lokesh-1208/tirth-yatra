@@ -11,9 +11,15 @@ export type PinMapProps = {
 // Centre of Madhya Pradesh when no pin is set yet.
 const DEFAULT_CENTRE = { lat: 23.25, lng: 77.41 };
 
-export function buildPinMapHtml(lat: number | null, lng: number | null): string {
+export function buildPinMapHtml(lat: number | null, lng: number | null, tileUrl: string): string {
   const has = lat !== null && lng !== null && Number.isFinite(lat) && Number.isFinite(lng);
-  const data = JSON.stringify({ has, lat: has ? lat : DEFAULT_CENTRE.lat, lng: has ? lng : DEFAULT_CENTRE.lng });
+  // JSON inside <script>: escape "<" so nothing can close the tag.
+  const data = JSON.stringify({
+    has,
+    lat: has ? lat : DEFAULT_CENTRE.lat,
+    lng: has ? lng : DEFAULT_CENTRE.lng,
+    tiles: tileUrl,
+  }).replace(/</g, "\\u003c");
   return `<!doctype html>
 <html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
@@ -27,7 +33,7 @@ export function buildPinMapHtml(lat: number | null, lng: number | null): string 
 <script>
   var D = ${data};
   var map = L.map("map").setView([D.lat, D.lng], D.has ? 16 : 7);
-  L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {maxZoom:19, attribution:"&copy; OpenStreetMap contributors"}).addTo(map);
+  L.tileLayer(D.tiles, {maxZoom:19, attribution:"&copy; OpenStreetMap contributors"}).addTo(map);
   var icon = L.divIcon({className:"", html:'<div class="pin"></div>', iconSize:[26,26], iconAnchor:[13,26]});
   var marker = null;
   function send(ll){

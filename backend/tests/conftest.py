@@ -7,6 +7,7 @@ import tempfile  # noqa: E402
 
 os.environ["UPLOAD_DIR"] = tempfile.mkdtemp(prefix="tirth-uploads-")  # photos uploaded by tests go to a temp dir
 os.environ["CURATOR_IDENTIFIERS"] = ""
+os.environ["TILE_CACHE_DIR"] = tempfile.mkdtemp(prefix="tirth-tiles-")
 
 import pytest
 from fastapi.testclient import TestClient

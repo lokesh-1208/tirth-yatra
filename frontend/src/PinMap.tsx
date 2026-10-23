@@ -2,13 +2,14 @@ import { useMemo } from "react";
 import { View } from "react-native";
 import { WebView } from "react-native-webview";
 
+import { TILE_URL } from "./api";
 import { buildPinMapHtml, parsePinMessage, PinMapProps } from "./pinMapHtml";
 
 // Native (Android / iOS). The web build uses PinMap.web.tsx.
 // The map is rebuilt only when `resetKey` changes, so dragging the pin doesn't reload it.
 export function PinMap({ lat, lng, height = 260, onMove, resetKey }: PinMapProps & { resetKey: string }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  const html = useMemo(() => buildPinMapHtml(lat, lng), [resetKey]);
+  const html = useMemo(() => buildPinMapHtml(lat, lng, TILE_URL), [resetKey]);
   return (
     <View testID="pin-map" style={{ height, borderRadius: 12, overflow: "hidden" }}>
       <WebView

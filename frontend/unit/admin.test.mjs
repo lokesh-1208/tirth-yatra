@@ -133,6 +133,9 @@ test("pin map messages are parsed safely", () => {
 });
 
 test("pin map html starts at the pin, or at the state centre without one", () => {
-  assert.match(buildPinMapHtml(22.5, 76.9), /"has":true,"lat":22\.5,"lng":76\.9/);
-  assert.match(buildPinMapHtml(null, null), /"has":false/);
+  const tiles = "http://localhost:8000/tiles/{z}/{x}/{y}.png";
+  assert.match(buildPinMapHtml(22.5, 76.9, tiles), /"has":true,"lat":22\.5,"lng":76\.9/);
+  assert.match(buildPinMapHtml(null, null, tiles), /"has":false/);
+  assert.ok(buildPinMapHtml(null, null, tiles).includes(`"tiles":"${tiles}"`));
+  assert.ok(!buildPinMapHtml(1, 1, "</script><script>alert(1)").includes("</script><script>alert(1)"));
 });

@@ -74,7 +74,10 @@ back to the built-in city list / a straight line (`source: "straight"` in the re
 The public Nominatim and OSRM servers are **free but for light use only** (about 1 request/second, no
 SLA). Before real traffic, self-host them or swap the providers: set `NOMINATIM_URL` / `OSRM_URL`
 (`backend/.env`), or replace `app/geocoding.py` / `app/routing.py`. `EXTERNAL_GEO_ENABLED=false` turns both off.
-The map is Leaflet with OpenStreetMap tiles (also light-use; use a tile provider for production).
+The maps are Leaflet with OpenStreetMap tiles, loaded **through the backend** (`/tiles/{z}/{x}/{y}.png`): it sends
+the app's User-Agent and caches tiles on disk (`backend/tile-cache/`, 7 days), because OSM refuses tile requests it
+cannot identify. Still light use only: set `TILE_URL_TEMPLATE` (backend) or `EXPO_PUBLIC_MAP_TILE_URL` (app) to a
+paid or self-hosted provider before launch.
 
 ### Break journey (stops on the way)
 Pilgrims can add up to 5 stops between start and end on **Plan route** ("Add a stop (your own path)").

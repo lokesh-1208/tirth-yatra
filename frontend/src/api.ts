@@ -22,6 +22,12 @@ import type {
 
 export const API_URL = (process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:8000").replace(/\/$/, "");
 
+/**
+ * Map tiles for the Leaflet maps. By default they come through our backend (/tiles), which identifies
+ * the app to OpenStreetMap and caches tiles. Set EXPO_PUBLIC_MAP_TILE_URL to use another provider.
+ */
+export const TILE_URL = process.env.EXPO_PUBLIC_MAP_TILE_URL ?? `${API_URL}/tiles/{z}/{x}/{y}.png`;
+
 /** Uploaded files come back as "/uploads/..." paths on the API host. */
 export const assetUrl = (path: string | null | undefined): string | null =>
   !path ? null : /^https?:\/\//.test(path) ? path : `${API_URL}${path}`;

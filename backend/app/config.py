@@ -42,6 +42,12 @@ class Settings(BaseSettings):
     upload_dir: str = "uploads"
     max_upload_mb: float = 5.0
 
+    # Map tiles, served to the app through /tiles (see routers/tiles.py). OpenStreetMap's servers are
+    # for light use only: switch to a paid or self-hosted provider before launch.
+    tile_url_template: str = "https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+    tile_cache_dir: str = "tile-cache"
+    tile_cache_days: int = 7
+
 
 @lru_cache
 def get_settings() -> Settings:
