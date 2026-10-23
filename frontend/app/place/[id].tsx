@@ -1,5 +1,5 @@
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
-import { useLocalSearchParams } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import { Image, Linking, ScrollView, Share, StyleSheet, View } from "react-native";
 import { ActivityIndicator, IconButton, Text } from "react-native-paper";
@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { formatDate, METHOD_LABEL, ROLE_LABEL } from "../../src/admin";
 import { api, assetUrl } from "../../src/api";
+import { to } from "../../src/adminUi";
 import { AutoCover } from "../../src/AutoCover";
 import { capitalize, colors, fontFamily, KIND_LABEL, radius, spacing } from "../../src/theme";
 import type { Place } from "../../src/types";
@@ -25,6 +26,7 @@ const TABS: { key: TabKey; label: string; icon: string }[] = [
 export default function PlaceDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const insets = useSafeAreaInsets();
+  const router = useRouter();
   const [place, setPlace] = useState<Place | null>(null);
   const [error, setError] = useState("");
   const [tab, setTab] = useState<TabKey>("about");
@@ -173,6 +175,15 @@ export default function PlaceDetail() {
             <Button title="Open in Google Maps" icon="google-maps" variant="tonal" onPress={() => Linking.openURL(mapsUrl)} />
           </>
         )}
+
+        <Button
+          testID="detail-report"
+          title="Something wrong here? Report it"
+          icon="flag-outline"
+          variant="text"
+          onPress={() => router.push(to(`/report?placeId=${place.id}&placeName=${encodeURIComponent(place.name)}`))}
+          style={{ marginTop: spacing.md }}
+        />
       </View>
     </ScrollView>
   );

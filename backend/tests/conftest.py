@@ -7,6 +7,7 @@ import tempfile  # noqa: E402
 
 os.environ["UPLOAD_DIR"] = tempfile.mkdtemp(prefix="tirth-uploads-")  # photos uploaded by tests go to a temp dir
 os.environ["CURATOR_IDENTIFIERS"] = ""
+os.environ["ADMIN_IDENTIFIERS"] = ""
 os.environ["TILE_CACHE_DIR"] = tempfile.mkdtemp(prefix="tirth-tiles-")
 
 import pytest
@@ -55,3 +56,10 @@ def curator_headers(client):
     from app.config import get_settings
 
     return login(client, get_settings().test_curator_email)
+
+
+@pytest.fixture()
+def admin_headers(client):
+    from app.config import get_settings
+
+    return login(client, get_settings().test_admin_email)

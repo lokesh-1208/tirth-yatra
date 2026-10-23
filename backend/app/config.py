@@ -14,6 +14,9 @@ class Settings(BaseSettings):
     otp_expire_minutes: int = 5
     otp_resend_seconds: int = 30
     otp_max_attempts: int = 5
+    # Wrong codes in a row (any OTP) before logins for that email / phone are blocked, and for how long.
+    otp_max_failures: int = 10
+    otp_block_minutes: int = 30
     # Dummy account for development/testing: its OTP is always `test_user_otp`.
     # MUST be disabled in production (ENABLE_TEST_USER=false).
     enable_test_user: bool = True
@@ -31,8 +34,13 @@ class Settings(BaseSettings):
     external_timeout_seconds: float = 6.0
     http_user_agent: str = "TirthYatra/0.1 (pilgrimage route planner)"
 
-    # Admin section. Emails / phones (comma-separated, as typed at login) that become curators on login.
+    # Admin section. Emails / phones (comma-separated, as typed at login) that get a role on login.
+    # Admins can do everything curators can, plus manage users and read the activity log.
+    admin_identifiers: str = ""
     curator_identifiers: str = ""
+    # Dev/test admin with the fixed OTP (only while enable_test_user is on). Emails at test_email_domain
+    # starting with "admin" are admins too (for automated tests).
+    test_admin_email: str = "admin@tirthyatra.app"
     # Dev/test curator with the fixed OTP (only while enable_test_user is on). Any email at
     # test_email_domain whose name starts with "curator" is a curator too (for automated tests).
     test_curator_email: str = "curator@tirthyatra.app"
@@ -41,6 +49,8 @@ class Settings(BaseSettings):
     # Uploaded photos (served at /uploads). Use object storage (S3 / GCS) in production.
     upload_dir: str = "uploads"
     max_upload_mb: float = 5.0
+    # Pilgrim reports ("Report wrong info", "Missing a place?"): most one user can send per day.
+    max_reports_per_day: int = 10
 
     # Map tiles, served to the app through /tiles (see routers/tiles.py). OpenStreetMap's servers are
     # for light use only: switch to a paid or self-hosted provider before launch.

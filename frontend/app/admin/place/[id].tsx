@@ -1,4 +1,4 @@
-import { useLocalSearchParams, useNavigation } from "expo-router";
+import { useLocalSearchParams, useNavigation, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 import { ActivityIndicator, Menu, Text } from "react-native-paper";
@@ -19,9 +19,10 @@ import {
   TRANSLATABLE,
   validateForm,
 } from "../../../src/admin";
-import { AdminSection, ChoiceChips, CoverThumb, FieldCell, FieldLabel, FieldRow, Note, StatusPill } from "../../../src/adminUi";
+import { AdminSection, ChoiceChips, CoverThumb, FieldCell, FieldLabel, FieldRow, Note, StatusPill, to } from "../../../src/adminUi";
 import { ChecksPanel, ContactsPanel, PhotosPanel } from "../../../src/adminPanels";
 import { adminApi } from "../../../src/api";
+import { useAuth } from "../../../src/auth";
 import { LocationPicker } from "../../../src/LocationPicker";
 import { colors, fontFamily, radius, spacing } from "../../../src/theme";
 import type { AdminPlace, PlaceStatus, TranslatableFields } from "../../../src/types";
@@ -42,6 +43,8 @@ const TR_LABELS: Record<keyof TranslatableFields, string> = {
 export default function PlaceEditor() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const navigation = useNavigation();
+  const router = useRouter();
+  const { user } = useAuth();
   const [place, setPlace] = useState<AdminPlace | null>(null);
   const [saved, setSaved] = useState<PlaceForm | null>(null); // form as last saved, to find changes
   const [form, setForm] = useState<PlaceForm | null>(null);
@@ -215,6 +218,24 @@ export default function PlaceEditor() {
             )}
           </View>
           {place.status !== "live" && !!blocker && <Note icon="alert-circle-outline">{blocker}</Note>}
+          <Button
+            testID="editor-reports"
+            title="Pilgrim reports for this place"
+            icon="flag-outline"
+            variant="text"
+            onPress={() => router.push(to(`/admin/reviews?place=${place.id}`))}
+            style={{ alignSelf: "flex-start" }}
+          />
+          {user?.role === "admin" && (
+            <Button
+              testID="editor-history"
+              title="Change history"
+              icon="history"
+              variant="text"
+              onPress={() => router.push(to(`/admin/activity?type=place&target=${place.id}`))}
+              style={{ alignSelf: "flex-start" }}
+            />
+          )}
         </View>
       </View>
 

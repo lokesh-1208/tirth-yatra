@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
 
 from .config import get_settings
-from .models import OtpCode, User
+from .models import LoginThrottle, OtpCode, User
 
 settings = get_settings()
 _EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
@@ -49,14 +49,19 @@ def _hash(identifier: str, code: str) -> str:
 def is_test_identifier(identifier: str) -> bool:
     if not settings.enable_test_user:
         return False
-    return identifier in (settings.test_user_email, settings.test_user_phone, settings.test_curator_email) or identifier.endswith(
+    return identifier in (
+        settings.test_user_email,
+        settings.test_user_phone,
+        settings.test_curator_email,
+        settings.test_admin_email,
+    ) or identifier.endswith(
         "@" + settings.test_email_domain
     )
 
 
-def curator_identifiers() -> set[str]:
+def _identifiers(raw_list: str) -> set[str]:
     out: set[str] = set()
-    for raw in settings.curator_identifiers.split(","):
+    for raw in raw_list.split(","):
         if raw.strip():
             try:
                 out.add(normalize_identifier(raw)[1])
@@ -65,16 +70,58 @@ def curator_identifiers() -> set[str]:
     return out
 
 
-def is_curator_identifier(identifier: str) -> bool:
-    """Should this (normalized) login identifier get the curator role?"""
+def curator_identifiers() -> set[str]:
+    return _identifiers(settings.curator_identifiers)
+
+
+def role_for_identifier(identifier: str) -> str | None:
+    """Role this (normalized) login identifier is configured for: "admin", "curator" or None."""
+    if identifier in _identifiers(settings.admin_identifiers):
+        return "admin"
     if identifier in curator_identifiers():
-        return True
+        return "curator"
     if settings.enable_test_user:
-        if identifier == settings.test_curator_email:
-            return True
         local, _, domain = identifier.partition("@")
-        return domain == settings.test_email_domain and local.startswith("curator")
-    return False
+        qa = domain == settings.test_email_domain
+        if identifier == settings.test_admin_email or (qa and local.startswith("admin")):
+            return "admin"
+        if identifier == settings.test_curator_email or (qa and local.startswith("curator")):
+            return "curator"
+    return None
+
+
+def is_curator_identifier(identifier: str) -> bool:
+    return role_for_identifier(identifier) is not None
+
+
+ROLE_RANK = {None: 0, "pilgrim": 0, "curator": 1, "admin": 2}
+
+
+# --- wrong-code blocking -------------------------------------------------------------------------
+
+
+def blocked_until(db: Session, identifier: str) -> datetime | None:
+    row = db.get(LoginThrottle, identifier)
+    if row and row.blocked_until and row.blocked_until > datetime.utcnow():
+        return row.blocked_until
+    return None
+
+
+def record_failure(db: Session, identifier: str) -> None:
+    row = db.get(LoginThrottle, identifier) or LoginThrottle(identifier=identifier, failures=0)
+    if row.blocked_until and row.blocked_until <= datetime.utcnow():
+        row.blocked_until, row.failures = None, 0  # an old block has run out: start counting again
+    row.failures = (row.failures or 0) + 1
+    if row.failures >= settings.otp_max_failures:
+        row.blocked_until = datetime.utcnow() + timedelta(minutes=settings.otp_block_minutes)
+        row.failures = 0
+    db.merge(row)
+    db.commit()
+
+
+def clear_failures(db: Session, identifier: str) -> None:
+    db.query(LoginThrottle).filter(LoginThrottle.identifier == identifier).delete()
+    db.commit()
 
 
 def send_otp(identifier: str, code: str) -> None:
@@ -140,4 +187,7 @@ def ensure_test_user(db: Session) -> None:
         db.commit()
     if not db.query(User).filter(User.email == settings.test_curator_email).first():
         db.add(User(email=settings.test_curator_email, name="Test Curator", faith="jain", sect="digambar", role="curator"))
+        db.commit()
+    if not db.query(User).filter(User.email == settings.test_admin_email).first():
+        db.add(User(email=settings.test_admin_email, name="Test Admin", faith="jain", sect="digambar", role="admin"))
         db.commit()

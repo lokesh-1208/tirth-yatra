@@ -59,7 +59,9 @@ export default function AdminHome() {
           <Text variant="headlineSmall" testID="admin-title">
             Namaste, {user?.name ?? "curator"}
           </Text>
-          <Text style={{ color: colors.muted }}>Add places, log checks and make them live.</Text>
+          <Text style={{ color: colors.muted }}>
+            {user?.role === "admin" ? "Admin: places, reports, leads, users and the activity log." : "Add places, log checks and make them live."}
+          </Text>
         </View>
         <Button testID="admin-add-place" title="Add a place" icon="plus" onPress={() => router.push(to("/admin/place/new"))} />
       </View>
@@ -86,6 +88,13 @@ export default function AdminHome() {
               onPress={() => router.push(to("/admin/places?recheck=1"))}
             />
             <Tile testID="admin-tile-leads" label="Leads to follow up" value={data.open_leads} onPress={() => router.push(to("/admin/leads"))} />
+            <Tile
+              testID="admin-tile-reports"
+              label="Reports to review"
+              value={data.open_reports}
+              warn={data.open_reports > 0}
+              onPress={() => router.push(to("/admin/reviews"))}
+            />
           </View>
 
           <View style={styles.columns}>
@@ -146,6 +155,13 @@ export default function AdminHome() {
           <View style={styles.links}>
             <Button testID="admin-open-places" title="All places" icon="map-marker-multiple-outline" variant="outline" onPress={() => router.push(to("/admin/places"))} />
             <Button testID="admin-open-leads" title="Leads to call" icon="phone-outline" variant="outline" onPress={() => router.push(to("/admin/leads"))} />
+            <Button testID="admin-open-reviews" title="Review queue" icon="flag-outline" variant="outline" onPress={() => router.push(to("/admin/reviews"))} />
+            {user?.role === "admin" && (
+              <>
+                <Button testID="admin-open-users" title="Users" icon="account-group-outline" variant="outline" onPress={() => router.push(to("/admin/users"))} />
+                <Button testID="admin-open-activity" title="Activity log" icon="history" variant="outline" onPress={() => router.push(to("/admin/activity"))} />
+              </>
+            )}
           </View>
           <View style={{ flexDirection: "row", gap: spacing.sm, flexWrap: "wrap" }}>
             {(["draft", "in_review", "live", "hidden"] as const).map((s) => (

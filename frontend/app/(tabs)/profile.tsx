@@ -120,7 +120,7 @@ export default function Profile() {
           </Card.Content>
         </Card>
 
-        {user.role === "curator" && (
+        {(user.role === "curator" || user.role === "admin") && (
           <>
             <SectionHeader title="Curator" />
             <Card mode="outlined" style={styles.card}>
@@ -157,6 +157,15 @@ export default function Profile() {
 
         <SectionHeader title="Support" />
         <Card mode="outlined" style={styles.card}>
+          <List.Item
+            testID="settings-my-reports"
+            title="My reports"
+            description="Wrong info or missing places you told us about"
+            left={(p) => <List.Icon {...p} icon="flag-outline" color={colors.primary} />}
+            right={(p) => <List.Icon {...p} icon="chevron-right" />}
+            onPress={() => router.push("/my-reports" as Href)}
+          />
+          <Divider />
           <List.Item
             testID="settings-help"
             title="Help & FAQ"

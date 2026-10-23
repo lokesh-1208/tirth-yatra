@@ -16,15 +16,41 @@ class User(Base):
     faith: Mapped[str | None] = mapped_column(String(40), nullable=True)
     sect: Mapped[str | None] = mapped_column(String(40), nullable=True)
     language: Mapped[str] = mapped_column(String(10), default="en")
-    # "pilgrim" (default) or "curator" (can use the admin section). NULL on older rows = pilgrim.
+    # "pilgrim" (default), "curator" (places, reports, leads) or "admin" (everything a curator can do,
+    # plus users and the activity log). NULL on older rows = pilgrim.
     role: Mapped[str | None] = mapped_column(String(20), nullable=True, default="pilgrim")
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    # --- account controls ---
+    last_login_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    login_count: Mapped[int | None] = mapped_column(Integer, nullable=True, default=0)
+    # Bumped to sign the user out everywhere: tokens carry the version they were issued with.
+    token_version: Mapped[int | None] = mapped_column(Integer, nullable=True, default=0)
+    is_locked: Mapped[bool | None] = mapped_column(Boolean, nullable=True, default=False)
+    locked_reason: Mapped[str | None] = mapped_column(String(300), nullable=True)
+    locked_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    locked_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
 
     @property
     def is_curator(self) -> bool:
-        return self.role == "curator"
+        """Can use the admin section (places, reports, leads). Admins can too."""
+        return self.role in ("curator", "admin")
+
+    @property
+    def is_admin(self) -> bool:
+        return self.role == "admin"
 
     saved: Mapped[list["SavedPlace"]] = relationship(back_populates="user", cascade="all, delete-orphan")
+
+
+class LoginThrottle(Base):
+    """Wrong-OTP counter per login identifier. Too many wrong codes block logins for a while."""
+
+    __tablename__ = "login_throttles"
+
+    identifier: Mapped[str] = mapped_column(String(255), primary_key=True)
+    failures: Mapped[int] = mapped_column(Integer, default=0)
+    blocked_until: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
 class OtpCode(Base):
@@ -193,3 +219,43 @@ class Lead(Base):
     created_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class Report(Base):
+    """Something a pilgrim sent: a correction to a place, or a place that is missing.
+
+    Nothing a pilgrim sends changes the app directly: a curator reviews it first.
+    """
+
+    __tablename__ = "reports"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    kind: Mapped[str] = mapped_column(String(20))  # correction / new_place
+    place_id: Mapped[int | None] = mapped_column(ForeignKey("places.id", ondelete="SET NULL"), nullable=True, index=True)
+    topic: Mapped[str] = mapped_column(String(20), default="other")  # timings / contact / location / name / stay / food / closed / other
+    message: Mapped[str] = mapped_column(Text)
+    place_name: Mapped[str | None] = mapped_column(String(200), nullable=True)  # for a new place
+    area: Mapped[str | None] = mapped_column(String(200), nullable=True)  # town / district, for a new place
+    status: Mapped[str] = mapped_column(String(20), default="open", index=True)  # open / resolved / dismissed
+    curator_note: Mapped[str | None] = mapped_column(Text, nullable=True)  # shown to the pilgrim
+    resolved_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    resolved_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    lead_id: Mapped[int | None] = mapped_column(ForeignKey("leads.id", ondelete="SET NULL"), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
+
+
+class AuditLog(Base):
+    """Who did what in the admin section, and when. Rows are never edited."""
+
+    __tablename__ = "audit_log"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    actor_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    actor_name: Mapped[str | None] = mapped_column(String(255), nullable=True)  # kept if the user is deleted
+    action: Mapped[str] = mapped_column(String(60), index=True)  # e.g. place.status, user.lock
+    target_type: Mapped[str] = mapped_column(String(20), index=True)  # place / user / lead / report
+    target_id: Mapped[int | None] = mapped_column(Integer, nullable=True, index=True)
+    target_label: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    details: Mapped[str | None] = mapped_column(Text, nullable=True)  # JSON
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)

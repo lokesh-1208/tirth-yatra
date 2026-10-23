@@ -59,6 +59,11 @@ asks for name + faith. There is no password, so nothing to reset: lost access = 
 **Dummy test user** (dev only): `test@tirthyatra.app` or `9999999999`, OTP always `999999`.
 **Dummy curator** (dev only, opens the admin section): `curator@tirthyatra.app`, OTP `999999`. Any
 `curator…@qa.tirthyatra.app` email is a curator too (isolated curators for automation).
+**Dummy admin** (dev only, curator powers plus users and the activity log): `admin@tirthyatra.app`, OTP `999999`.
+Any `admin…@qa.tirthyatra.app` email is an admin too.
+
+Ten wrong OTP codes in a row block logins for that email / phone for 30 minutes (`OTP_MAX_FAILURES`,
+`OTP_BLOCK_MINUTES`). An admin can clear the block with **Reset login**.
 Any `*@qa.tirthyatra.app` email also uses `999999` (used by the automation to get isolated users).
 Set `ENABLE_TEST_USER=false` in production. Real OTPs are currently only printed to the backend
 console (`app/otp.py: send_otp`) until an SMS/email provider is wired in.
@@ -87,9 +92,29 @@ straight lines through the stops. The response has `stops` (label, lat, lng, `di
 them as gold square pins, and a saved yatra keeps them (`via`) and shows them in its timeline as "Break journey".
 The limit is `MAX_STOPS` in `backend/app/routing.py` and `frontend/src/routeStops.ts` (keep them equal).
 
-## Admin section (curators)
-Curators open **Profile → Admin** (web first). Real curators: list their email / phone in `CURATOR_IDENTIFIERS`
-(`backend/.env`); they get the role on their next login. Every `/admin/*` call checks the role (403 otherwise).
+## Admin section (curators and admins)
+Curators and admins open **Profile → Admin** (web first). Roles come from `ADMIN_IDENTIFIERS` and
+`CURATOR_IDENTIFIERS` (`backend/.env`, applied on next login, never demoted automatically) or from an admin on the
+**Users** screen. Every `/admin/*` call checks the role (403 otherwise).
+
+| Role | Can do |
+|---|---|
+| Pilgrim | Use the app, send reports |
+| Curator | Places, translations, contacts, photos, checks, publishing, review queue, leads |
+| Admin | Everything a curator can, plus **Users** and the **Activity log** |
+
+**Users** (admins only): search and filter everyone (role, locked, login blocked, hide `@qa.tirthyatra.app` test
+accounts), see last login, number of logins, saved places, reports and checks. Per user:
+- **Reset login**: clears the wrong-code block and signs them out of every device (login is OTP-only, no passwords).
+- **Lock / Unlock** with a reason: a locked user is signed out at once and cannot log in.
+- **Profile and role**: name, faith, sect, language, role. You cannot change your own role, lock or delete yourself,
+  and the last admin cannot be demoted, locked or deleted.
+- **Delete account** (type DELETE): removes name, email, phone and saved places; their reports stay without their name,
+  and log entries about them lose their name.
+- **Add a team member** before their first login, with the role they should get.
+
+**Activity log** (admins only): every admin and curator action (place edits, status, checks, contacts, photos,
+translations, leads, report reviews, user changes) with who, what and when; filter by type, person or place.
 
 - **Admin home**: counts by status, re-check due list, recent checks, leads to follow up.
 - **Places**: search and filter (draft, in review, live, hidden, re-check due).
@@ -102,6 +127,12 @@ Curators open **Profile → Admin** (web first). Real curators: list their email
 - **Publishing**: only `live` places reach pilgrims. A place can go live only after at least one check is logged.
   A check sets the verified badge (who, when, how) and the re-check date (3, 6 or 12 months).
 - **Leads to call**: places heard of somewhere; mark called / rejected, or "Make draft" to start a place linked to it.
+
+- **Review queue**: pilgrims send "Report wrong info" (Place detail) or "Missing a place?" (after planning a route)
+  from the app; reports wait in **Admin → Review queue** (oldest first). Fix the place in its editor, then mark the report
+  resolved or dismissed with an optional note; the pilgrim sees the status and note in **Profile → My reports**.
+  A missing-place report can be turned into a lead in one tap. Nothing a pilgrim sends changes the app directly.
+  Limits: one open report per place and topic per user, `MAX_REPORTS_PER_DAY` (default 10) per user.
 
 Places that existed before the admin section are kept `live` (startup backfill), so the sample data still shows
 until you hide it. Photos are stored in `backend/uploads/` (git-ignored) and served at `/uploads/...`.
@@ -147,4 +178,5 @@ verified after you have confirmed it by call or local reference.
 - [ ] Photos, regional languages (i18n)
 - [ ] Sync My Yatras to the backend
 - [x] Admin section: roles, places, languages, contacts, cover photos, checks, publishing, leads
-- [ ] Review queue for pilgrim reports, festival dates (phase 2)
+- [x] Pilgrim reports (wrong info, missing place) and the admin review queue
+- [ ] Festival dates, Hindi app screens, real email OTP (phase 2)

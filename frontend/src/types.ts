@@ -6,8 +6,8 @@ export type User = {
   faith: string | null;
   sect: string | null;
   language: string;
-  /** "curator" can open the admin section. */
-  role?: "pilgrim" | "curator" | null;
+  /** "curator" and "admin" can open the admin section; only "admin" manages users and sees the activity log. */
+  role?: Role | null;
 };
 
 export type Place = {
@@ -210,6 +210,7 @@ export type AdminSummary = {
   counts: Record<PlaceStatus, number>;
   recheck_due: number;
   open_leads: number;
+  open_reports: number;
   due_places: AdminPlaceSummary[];
   recent_checks: { place_id: number; place_name: string; method: CheckMethod; checked_on: string; checked_by_name: string | null }[];
 };
@@ -224,4 +225,89 @@ export type Lead = {
   place_id: number | null;
   created_at: string;
   updated_at: string;
+};
+
+// ---------------------------------------------------------------------------------------------
+// Pilgrim reports and the review queue
+// ---------------------------------------------------------------------------------------------
+
+export type ReportKind = "correction" | "new_place";
+export type ReportTopic = "timings" | "contact" | "location" | "name" | "stay" | "food" | "closed" | "other";
+export type ReportStatus = "open" | "resolved" | "dismissed";
+
+export type ReportInput = {
+  kind: ReportKind;
+  place_id?: number;
+  topic: ReportTopic;
+  message: string;
+  place_name?: string;
+  area?: string;
+};
+
+export type Report = {
+  id: number;
+  kind: ReportKind;
+  place_id: number | null;
+  place_title: string | null;
+  topic: ReportTopic;
+  message: string;
+  area: string | null;
+  status: ReportStatus;
+  curator_note: string | null;
+  created_at: string;
+  resolved_at: string | null;
+};
+
+export type AdminReport = Report & {
+  reporter_name: string | null;
+  reporter_contact: string | null;
+  place_status: PlaceStatus | null;
+  lead_id: number | null;
+};
+
+// ---------------------------------------------------------------------------------------------
+// User management and the activity log (admins only)
+// ---------------------------------------------------------------------------------------------
+
+export type Role = "pilgrim" | "curator" | "admin";
+
+export type AuditEntry = {
+  id: number;
+  actor_id: number | null;
+  actor_name: string | null;
+  action: string;
+  target_type: "place" | "user" | "lead" | "report";
+  target_id: number | null;
+  target_label: string | null;
+  details: Record<string, unknown> | null;
+  created_at: string;
+};
+
+export type AuditPage = { entries: AuditEntry[]; next_before_id: number | null };
+
+export type AdminUser = {
+  id: number;
+  name: string | null;
+  email: string | null;
+  phone: string | null;
+  role: Role;
+  faith: string | null;
+  sect: string | null;
+  language: string;
+  created_at: string | null;
+  last_login_at: string | null;
+  login_count: number;
+  is_locked: boolean;
+  locked_reason: string | null;
+  locked_at: string | null;
+  login_blocked_until: string | null;
+  saved_count: number;
+  reports_count: number;
+  checks_count: number;
+};
+
+export type AdminUserDetail = AdminUser & {
+  recent_reports: Report[];
+  activity_on: AuditEntry[];
+  activity_by: AuditEntry[];
 };
