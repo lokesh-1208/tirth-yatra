@@ -5,8 +5,10 @@ import { Image, Linking, ScrollView, Share, StyleSheet, View } from "react-nativ
 import { ActivityIndicator, IconButton, Text } from "react-native-paper";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { api } from "../../src/api";
-import { capitalize, colors, fontFamily, KIND_ICON, KIND_LABEL, radius, spacing } from "../../src/theme";
+import { formatDate, METHOD_LABEL, ROLE_LABEL } from "../../src/admin";
+import { api, assetUrl } from "../../src/api";
+import { AutoCover } from "../../src/AutoCover";
+import { capitalize, colors, fontFamily, KIND_LABEL, radius, spacing } from "../../src/theme";
 import type { Place } from "../../src/types";
 import { Button, Chip, ErrorText, Hero, Pill, Placeholder } from "../../src/ui";
 
@@ -62,12 +64,19 @@ export default function PlaceDetail() {
   return (
     <ScrollView contentContainerStyle={{ paddingBottom: spacing.xl }}>
       <Hero style={{ paddingTop: insets.top + 64, paddingBottom: spacing.xl }}>
-        {place.photo_url ? (
-          <Image source={{ uri: place.photo_url }} style={styles.photo} />
+        {assetUrl(place.photo_url) ? (
+          <Image testID="detail-cover-photo" source={{ uri: assetUrl(place.photo_url)! }} style={styles.photo} />
         ) : (
-          <View style={styles.kindBadge}>
-            <MaterialCommunityIcons name={(KIND_ICON[place.kind] ?? "map-marker") as any} size={34} color="#fff" />
-          </View>
+          // No cover photo yet: a made-up cover with the name, never a deity image.
+          <AutoCover
+            testID="detail-auto-cover"
+            name={place.name}
+            kind={place.kind}
+            city={place.city}
+            sect={place.sect}
+            height={160}
+            style={{ marginBottom: spacing.md, borderWidth: 1, borderColor: "rgba(255,255,255,0.35)" }}
+          />
         )}
         <Text testID="detail-name" variant="headlineMedium" style={{ color: "#fff", lineHeight: 40 }}>
           {place.name}
@@ -82,9 +91,12 @@ export default function PlaceDetail() {
           {!!meta && <Pill tone="onDark" label={meta} />}
           {place.verified ? (
             <Pill
+              testID="detail-verified"
               tone="success"
               icon="check-decagram"
-              label={`Verified${place.verified_by ? ` by ${place.verified_by}` : ""}${place.verified_on ? ` on ${place.verified_on}` : ""}`}
+              label={`Verified${place.verified_by ? ` by ${place.verified_by}` : ""}${place.verified_on ? ` on ${formatDate(place.verified_on)}` : ""}${
+                place.verified_method ? ` · ${METHOD_LABEL[place.verified_method] ?? place.verified_method}` : ""
+              }`}
             />
           ) : (
             <Pill testID="detail-unverified" tone="warn" icon="progress-clock" label="Not yet verified – details may be incomplete" />
@@ -118,6 +130,17 @@ export default function PlaceDetail() {
 
       <View style={{ paddingHorizontal: spacing.md }}>
         <ErrorText>{error}</ErrorText>
+        {!!place.landmarks && (
+          <View testID="detail-landmarks" style={styles.landmarks}>
+            <MaterialCommunityIcons name="map-marker-radius-outline" size={20} color={colors.secondary} />
+            <View style={{ flex: 1, marginLeft: spacing.sm }}>
+              <Text variant="labelLarge" style={{ color: colors.secondary, fontFamily: fontFamily.bold }}>
+                Landmarks · work without network
+              </Text>
+              <Text style={styles.body}>{place.landmarks}</Text>
+            </View>
+          </View>
+        )}
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: spacing.md }}>
           {TABS.map((t) => (
             <Chip key={t.key} testID={`detail-tab-${t.key}`} label={t.label} icon={t.icon} selected={tab === t.key} onPress={() => setTab(t.key)} />
@@ -136,7 +159,17 @@ export default function PlaceDetail() {
         {tab === "reach" && (
           <>
             <Section icon="car-outline" title="How to reach" body={place.how_to_reach} />
-            <Section icon="phone-outline" title="Contact" body={place.contact_phone} />
+            <Section icon="map-marker-radius-outline" title="Landmarks" body={place.landmarks ?? null} />
+            <Section
+              icon="phone-outline"
+              title="Contact"
+              body={
+                place.contacts?.length
+                  ? place.contacts.map((c) => `${c.name} (${ROLE_LABEL[c.role as keyof typeof ROLE_LABEL] ?? c.role}): ${c.phone}`).join("\n")
+                  : place.contact_phone
+              }
+            />
+            {!!place.address && <Section icon="home-map-marker" title="Address" body={place.address} />}
             <Button title="Open in Google Maps" icon="google-maps" variant="tonal" onPress={() => Linking.openURL(mapsUrl)} />
           </>
         )}
@@ -196,13 +229,12 @@ function Section({ icon, title, body }: { icon: string; title: string; body: str
 
 const styles = StyleSheet.create({
   photo: { width: "100%", height: 180, borderRadius: radius.lg, marginBottom: spacing.md },
-  kindBadge: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: "rgba(255,255,255,0.18)",
-    alignItems: "center",
-    justifyContent: "center",
+  landmarks: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    backgroundColor: colors.secondaryLight,
+    borderRadius: radius.lg,
+    padding: spacing.md,
     marginBottom: spacing.md,
   },
   actions: {

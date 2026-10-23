@@ -65,6 +65,6 @@ def seed_places(db: Session) -> int:
     if db.query(Place).count() > 0:
         return 0
     for item in SAMPLE_PLACES:
-        db.add(Place(**item, verified=False))
+        db.add(Place(**item, verified=False, status="live"))  # samples stay visible until you hide them
     db.commit()
     return len(SAMPLE_PLACES)

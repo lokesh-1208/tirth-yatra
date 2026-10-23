@@ -44,3 +44,11 @@ def add_missing_columns() -> None:
                 if column.name not in existing and column.nullable and column.server_default is None:
                     col_type = column.type.compile(dialect=engine.dialect)
                     conn.execute(text(f'ALTER TABLE "{table.name}" ADD COLUMN "{column.name}" {col_type}'))
+
+
+def backfill_defaults() -> None:
+    """Fill values for columns added after rows already existed (dev-time, idempotent)."""
+    with engine.begin() as conn:
+        # Places from before the admin section were all visible in the app: keep them visible.
+        conn.execute(text("UPDATE places SET status = 'live' WHERE status IS NULL"))
+        conn.execute(text("UPDATE users SET role = 'pilgrim' WHERE role IS NULL"))

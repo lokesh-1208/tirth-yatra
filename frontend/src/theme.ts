@@ -116,6 +116,7 @@ export const navTheme: NavTheme = {
 
 export const KIND_LABEL: Record<string, string> = {
   tirth: "Tirth",
+  siddha_kshetra: "Siddha Kshetra",
   atishay_kshetra: "Atishay Kshetra",
   temple: "Temple",
   dharamshala: "Dharamshala",
@@ -124,6 +125,7 @@ export const KIND_LABEL: Record<string, string> = {
 /** MaterialCommunityIcons name per place kind. */
 export const KIND_ICON: Record<string, string> = {
   tirth: "meditation",
+  siddha_kshetra: "white-balance-sunny",
   atishay_kshetra: "star-four-points",
   temple: "flag-variant",
   dharamshala: "bed",

@@ -3,6 +3,10 @@ import os
 os.environ["DATABASE_URL"] = "sqlite:///:memory:"
 os.environ["SECRET_KEY"] = "test-secret"
 os.environ["EXTERNAL_GEO_ENABLED"] = "false"  # tests must not hit Nominatim/OSRM
+import tempfile  # noqa: E402
+
+os.environ["UPLOAD_DIR"] = tempfile.mkdtemp(prefix="tirth-uploads-")  # photos uploaded by tests go to a temp dir
+os.environ["CURATOR_IDENTIFIERS"] = ""
 
 import pytest
 from fastapi.testclient import TestClient
@@ -32,3 +36,21 @@ def auth_headers(client):
     r = client.post("/auth/otp/verify", json={"identifier": ident, "otp": s.test_user_otp})
     assert r.status_code == 200
     return {"Authorization": f"Bearer {r.json()['access_token']}"}
+
+
+def login(client, identifier: str) -> dict:
+    """Log in with the fixed test OTP and return auth headers."""
+    from app.config import get_settings
+
+    s = get_settings()
+    assert client.post("/auth/otp/request", json={"identifier": identifier}).status_code == 200
+    r = client.post("/auth/otp/verify", json={"identifier": identifier, "otp": s.test_user_otp})
+    assert r.status_code == 200, r.text
+    return {"Authorization": f"Bearer {r.json()['access_token']}"}
+
+
+@pytest.fixture()
+def curator_headers(client):
+    from app.config import get_settings
+
+    return login(client, get_settings().test_curator_email)

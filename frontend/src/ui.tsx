@@ -147,14 +147,16 @@ export function Empty({
   hint,
   icon = "map-search-outline",
   action,
+  testID,
 }: {
   title: string;
   hint?: string;
   icon?: IconName;
   action?: ReactNode;
+  testID?: string;
 }) {
   return (
-    <View style={styles.empty}>
+    <View testID={testID} style={styles.empty}>
       <View style={styles.emptyIcon}>
         <MaterialCommunityIcons name={icon} size={36} color={colors.primary} />
       </View>

@@ -1,7 +1,30 @@
 import { buildQuery as qs } from "./routeStops";
-import type { AuthResponse, GeoPoint, OtpSent, Place, RouteResult, User } from "./types";
+import type {
+  AdminContact,
+  AdminPhoto,
+  AdminPlace,
+  AdminPlaceSummary,
+  AdminSummary,
+  AuthResponse,
+  CheckMethod,
+  ContactRole,
+  GeoPoint,
+  Lead,
+  LeadStatus,
+  OtpSent,
+  Place,
+  PlaceInput,
+  PlaceStatus,
+  RouteResult,
+  TranslatableFields,
+  User,
+} from "./types";
 
 export const API_URL = (process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:8000").replace(/\/$/, "");
+
+/** Uploaded files come back as "/uploads/..." paths on the API host. */
+export const assetUrl = (path: string | null | undefined): string | null =>
+  !path ? null : /^https?:\/\//.test(path) ? path : `${API_URL}${path}`;
 
 export class ApiError extends Error {
   constructor(public status: number, message: string) {
@@ -20,7 +43,9 @@ export const setUnauthorizedHandler = (fn: (() => void) | null) => {
 };
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
-  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  // FormData (photo uploads) sets its own multipart Content-Type with the boundary.
+  const isForm = typeof FormData !== "undefined" && options.body instanceof FormData;
+  const headers: Record<string, string> = isForm ? {} : { "Content-Type": "application/json" };
   if (token) headers.Authorization = `Bearer ${token}`;
 
   let res: Response;
@@ -63,4 +88,56 @@ export const api = {
   // `via`: stops between start and end, in travel order ("break journey").
   route: (params: { start: string; end: string; via?: string[]; max_detour_km?: number; sect?: string }) =>
     request<RouteResult>(`/route${qs(params)}`),
+};
+
+const json = (method: string, body?: unknown): RequestInit => ({ method, body: body === undefined ? undefined : JSON.stringify(body) });
+
+/** Admin section (curators only). */
+export const adminApi = {
+  summary: () => request<AdminSummary>("/admin/summary"),
+  places: (params: { q?: string; status?: PlaceStatus; recheck_due?: boolean } = {}) =>
+    request<AdminPlaceSummary[]>(`/admin/places${qs(params)}`),
+  place: (id: number | string) => request<AdminPlace>(`/admin/places/${id}`),
+  createPlace: (data: PlaceInput & { name: string; latitude: number; longitude: number; lead_id?: number }) =>
+    request<AdminPlace>("/admin/places", json("POST", data)),
+  updatePlace: (id: number, data: PlaceInput) => request<AdminPlace>(`/admin/places/${id}`, json("PATCH", data)),
+  setStatus: (id: number, status: PlaceStatus) => request<AdminPlace>(`/admin/places/${id}/status`, json("POST", { status })),
+
+  saveTranslation: (id: number, language: string, data: Partial<TranslatableFields>) =>
+    request<AdminPlace>(`/admin/places/${id}/translations/${language}`, json("PUT", data)),
+  deleteTranslation: (id: number, language: string) =>
+    request<AdminPlace>(`/admin/places/${id}/translations/${language}`, json("DELETE")),
+
+  addContact: (id: number, data: { name: string; role: ContactRole; phone: string; consent_on: string | null; show_publicly: boolean }) =>
+    request<AdminContact>(`/admin/places/${id}/contacts`, json("POST", data)),
+  updateContact: (id: number, contactId: number, data: Partial<Omit<AdminContact, "id">>) =>
+    request<AdminContact>(`/admin/places/${id}/contacts/${contactId}`, json("PATCH", data)),
+  deleteContact: (id: number, contactId: number) => request<void>(`/admin/places/${id}/contacts/${contactId}`, json("DELETE")),
+
+  uploadPhoto: (
+    id: number,
+    file: Blob,
+    fileName: string,
+    meta: { no_deity_confirmed: boolean; caption?: string; photographer?: string; permission_note?: string; make_cover?: boolean }
+  ) => {
+    const form = new FormData();
+    form.append("file", file, fileName);
+    Object.entries(meta).forEach(([k, v]) => {
+      if (v !== undefined && v !== "") form.append(k, String(v));
+    });
+    return request<AdminPhoto>(`/admin/places/${id}/photos`, { method: "POST", body: form });
+  },
+  updatePhoto: (id: number, photoId: number, data: Partial<Pick<AdminPhoto, "caption" | "photographer" | "permission_note" | "is_cover">>) =>
+    request<AdminPhoto>(`/admin/places/${id}/photos/${photoId}`, json("PATCH", data)),
+  deletePhoto: (id: number, photoId: number) => request<void>(`/admin/places/${id}/photos/${photoId}`, json("DELETE")),
+
+  logCheck: (
+    id: number,
+    data: { method: CheckMethod; checked_with?: string; confirmed?: string; checked_on?: string; recheck_after_months: number }
+  ) => request<AdminPlace>(`/admin/places/${id}/checks`, json("POST", data)),
+
+  leads: (status?: LeadStatus) => request<Lead[]>(`/admin/leads${qs({ status })}`),
+  addLead: (data: { name: string; area?: string; source?: string; notes?: string }) => request<Lead>("/admin/leads", json("POST", data)),
+  updateLead: (leadId: number, data: Partial<Pick<Lead, "name" | "area" | "source" | "notes" | "status">>) =>
+    request<Lead>(`/admin/leads/${leadId}`, json("PATCH", data)),
 };

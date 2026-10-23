@@ -31,6 +31,17 @@ class Settings(BaseSettings):
     external_timeout_seconds: float = 6.0
     http_user_agent: str = "TirthYatra/0.1 (pilgrimage route planner)"
 
+    # Admin section. Emails / phones (comma-separated, as typed at login) that become curators on login.
+    curator_identifiers: str = ""
+    # Dev/test curator with the fixed OTP (only while enable_test_user is on). Any email at
+    # test_email_domain whose name starts with "curator" is a curator too (for automated tests).
+    test_curator_email: str = "curator@tirthyatra.app"
+    # Language of a place's own text fields; other languages are stored as translations.
+    default_language: str = "en"
+    # Uploaded photos (served at /uploads). Use object storage (S3 / GCS) in production.
+    upload_dir: str = "uploads"
+    max_upload_mb: float = 5.0
+
 
 @lru_cache
 def get_settings() -> Settings:

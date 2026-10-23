@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 
 from ..database import get_db
 from ..models import User
-from ..otp import InvalidIdentifier, check_otp, issue_otp, normalize_identifier
+from ..otp import InvalidIdentifier, check_otp, is_curator_identifier, issue_otp, normalize_identifier
 from ..schemas import OtpRequest, OtpSent, OtpVerify, Token, UserOut, UserUpdate
 from ..security import create_access_token, get_current_user
 
@@ -38,6 +38,10 @@ def verify_otp(data: OtpVerify, db: Session = Depends(get_db)):
     if is_new:  # first successful OTP creates the account
         user = User(**{kind: identifier})
         db.add(user)
+        db.commit()
+        db.refresh(user)
+    if user.role != "curator" and is_curator_identifier(identifier):  # only ever upgrades, never demotes
+        user.role = "curator"
         db.commit()
         db.refresh(user)
     return Token(access_token=create_access_token(user.id), user=UserOut.model_validate(user), is_new_user=is_new)

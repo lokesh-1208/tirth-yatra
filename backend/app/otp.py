@@ -49,9 +49,32 @@ def _hash(identifier: str, code: str) -> str:
 def is_test_identifier(identifier: str) -> bool:
     if not settings.enable_test_user:
         return False
-    return identifier in (settings.test_user_email, settings.test_user_phone) or identifier.endswith(
+    return identifier in (settings.test_user_email, settings.test_user_phone, settings.test_curator_email) or identifier.endswith(
         "@" + settings.test_email_domain
     )
+
+
+def curator_identifiers() -> set[str]:
+    out: set[str] = set()
+    for raw in settings.curator_identifiers.split(","):
+        if raw.strip():
+            try:
+                out.add(normalize_identifier(raw)[1])
+            except InvalidIdentifier:
+                pass
+    return out
+
+
+def is_curator_identifier(identifier: str) -> bool:
+    """Should this (normalized) login identifier get the curator role?"""
+    if identifier in curator_identifiers():
+        return True
+    if settings.enable_test_user:
+        if identifier == settings.test_curator_email:
+            return True
+        local, _, domain = identifier.partition("@")
+        return domain == settings.test_email_domain and local.startswith("curator")
+    return False
 
 
 def send_otp(identifier: str, code: str) -> None:
@@ -114,4 +137,7 @@ def ensure_test_user(db: Session) -> None:
                 sect="digambar",
             )
         )
+        db.commit()
+    if not db.query(User).filter(User.email == settings.test_curator_email).first():
+        db.add(User(email=settings.test_curator_email, name="Test Curator", faith="jain", sect="digambar", role="curator"))
         db.commit()
