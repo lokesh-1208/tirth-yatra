@@ -210,6 +210,7 @@ export type AdminSummary = {
   counts: Record<PlaceStatus, number>;
   recheck_due: number;
   open_leads: number;
+  open_reports: number;
   due_places: AdminPlaceSummary[];
   recent_checks: { place_id: number; place_name: string; method: CheckMethod; checked_on: string; checked_by_name: string | null }[];
 };
@@ -224,4 +225,42 @@ export type Lead = {
   place_id: number | null;
   created_at: string;
   updated_at: string;
+};
+
+// ---------------------------------------------------------------------------------------------
+// Pilgrim reports and the review queue
+// ---------------------------------------------------------------------------------------------
+
+export type ReportKind = "correction" | "new_place";
+export type ReportTopic = "timings" | "contact" | "location" | "name" | "stay" | "food" | "closed" | "other";
+export type ReportStatus = "open" | "resolved" | "dismissed";
+
+export type ReportInput = {
+  kind: ReportKind;
+  place_id?: number;
+  topic: ReportTopic;
+  message: string;
+  place_name?: string;
+  area?: string;
+};
+
+export type Report = {
+  id: number;
+  kind: ReportKind;
+  place_id: number | null;
+  place_title: string | null;
+  topic: ReportTopic;
+  message: string;
+  area: string | null;
+  status: ReportStatus;
+  curator_note: string | null;
+  created_at: string;
+  resolved_at: string | null;
+};
+
+export type AdminReport = Report & {
+  reporter_name: string | null;
+  reporter_contact: string | null;
+  place_status: PlaceStatus | null;
+  lead_id: number | null;
 };

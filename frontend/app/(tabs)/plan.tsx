@@ -7,6 +7,7 @@ import { ActivityIndicator, Card, IconButton, Text } from "react-native-paper";
 import { api } from "../../src/api";
 import { LocationInput } from "../../src/LocationInput";
 import { PlaceCard } from "../../src/PlaceCard";
+import { to } from "../../src/adminUi";
 import { RouteMap } from "../../src/RouteMap";
 import {
   addStop,
@@ -236,6 +237,19 @@ export default function PlanRoute() {
       )}
       ListEmptyComponent={
         result ? <Empty title="No places on this route" hint="Try a larger detour distance." icon="map-marker-off-outline" /> : null
+      }
+      ListFooterComponent={
+        result ? (
+          <View style={{ paddingHorizontal: spacing.md, marginTop: spacing.sm }}>
+            <Button
+              testID="route-missing-place"
+              title="Missing a place on this route? Tell us"
+              icon="map-marker-plus-outline"
+              variant="text"
+              onPress={() => router.push(to(`/report?area=${encodeURIComponent(short(labels?.end ?? result.end))}`))}
+            />
+          </View>
+        ) : null
       }
     />
   );

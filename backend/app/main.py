@@ -9,7 +9,7 @@ from fastapi.staticfiles import StaticFiles
 from .config import get_settings
 from .database import Base, SessionLocal, add_missing_columns, backfill_defaults, engine
 from .otp import ensure_test_user
-from .routers import admin, auth, places, tiles
+from .routers import admin, auth, places, reports, tiles
 from .seed import seed_places
 
 settings = get_settings()
@@ -39,6 +39,7 @@ app.add_middleware(
 
 app.include_router(auth.router)
 app.include_router(places.router)
+app.include_router(reports.router)
 app.include_router(admin.router)
 app.include_router(tiles.router)
 

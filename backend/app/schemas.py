@@ -318,6 +318,7 @@ class AdminSummary(BaseModel):
     counts: dict[str, int]  # places by status
     recheck_due: int  # live places whose re-check date has passed (or never checked)
     open_leads: int  # leads still to call or called
+    open_reports: int = 0  # pilgrim reports waiting for review
     due_places: list[AdminPlaceSummary]
     recent_checks: list[dict]
 
@@ -349,3 +350,59 @@ class LeadOut(BaseModel):
     place_id: int | None = None
     created_at: datetime
     updated_at: datetime
+
+
+# ---------------------------------------------------------------------------------------------
+# Pilgrim reports and the review queue
+# ---------------------------------------------------------------------------------------------
+
+ReportKind = Literal["correction", "new_place"]
+ReportTopic = Literal["timings", "contact", "location", "name", "stay", "food", "closed", "other"]
+ReportStatus = Literal["open", "resolved", "dismissed"]
+
+
+class ReportIn(BaseModel):
+    kind: ReportKind
+    place_id: int | None = None  # required for a correction
+    topic: ReportTopic = "other"
+    message: str = Field(min_length=5, max_length=2000)
+    place_name: str | None = Field(default=None, max_length=200)  # required for a new place
+    area: str | None = Field(default=None, max_length=200)
+
+    @model_validator(mode="after")
+    def _shape(self):
+        if self.kind == "correction" and self.place_id is None:
+            raise ValueError("Say which place the correction is about")
+        if self.kind == "new_place" and not (self.place_name or "").strip():
+            raise ValueError("Enter the name of the missing place")
+        return self
+
+
+class ReportOut(BaseModel):
+    """What the pilgrim sees of their own report."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    kind: str
+    place_id: int | None = None
+    place_title: str | None = None  # the place's name now, or the suggested name
+    topic: str
+    message: str
+    area: str | None = None
+    status: str
+    curator_note: str | None = None
+    created_at: datetime
+    resolved_at: datetime | None = None
+
+
+class AdminReportOut(ReportOut):
+    reporter_name: str | None = None
+    reporter_contact: str | None = None  # email or phone, so the curator can follow up
+    place_status: str | None = None
+    lead_id: int | None = None
+
+
+class ReportReview(BaseModel):
+    status: ReportStatus
+    curator_note: str | None = Field(default=None, max_length=1000)

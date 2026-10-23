@@ -27,6 +27,7 @@ export default function AdminLayout() {
       <Stack.Screen name="index" options={{ title: "Admin" }} />
       <Stack.Screen name="places" options={{ title: "Places" }} />
       <Stack.Screen name="leads" options={{ title: "Leads to call" }} />
+      <Stack.Screen name="reviews" options={{ title: "Review queue" }} />
       <Stack.Screen name="place/new" options={{ title: "Add a place" }} />
       <Stack.Screen name="place/[id]" options={{ title: "Edit place" }} />
     </Stack>

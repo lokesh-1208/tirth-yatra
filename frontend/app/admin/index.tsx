@@ -86,6 +86,13 @@ export default function AdminHome() {
               onPress={() => router.push(to("/admin/places?recheck=1"))}
             />
             <Tile testID="admin-tile-leads" label="Leads to follow up" value={data.open_leads} onPress={() => router.push(to("/admin/leads"))} />
+            <Tile
+              testID="admin-tile-reports"
+              label="Reports to review"
+              value={data.open_reports}
+              warn={data.open_reports > 0}
+              onPress={() => router.push(to("/admin/reviews"))}
+            />
           </View>
 
           <View style={styles.columns}>
@@ -146,6 +153,7 @@ export default function AdminHome() {
           <View style={styles.links}>
             <Button testID="admin-open-places" title="All places" icon="map-marker-multiple-outline" variant="outline" onPress={() => router.push(to("/admin/places"))} />
             <Button testID="admin-open-leads" title="Leads to call" icon="phone-outline" variant="outline" onPress={() => router.push(to("/admin/leads"))} />
+            <Button testID="admin-open-reviews" title="Review queue" icon="flag-outline" variant="outline" onPress={() => router.push(to("/admin/reviews"))} />
           </View>
           <View style={{ flexDirection: "row", gap: spacing.sm, flexWrap: "wrap" }}>
             {(["draft", "in_review", "live", "hidden"] as const).map((s) => (

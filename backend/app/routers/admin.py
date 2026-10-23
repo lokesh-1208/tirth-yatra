@@ -6,8 +6,9 @@ photos and translations, publish places to the app, and keep a list of leads to 
 import calendar
 import re
 import secrets
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
+from typing import Literal
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
 from sqlalchemy import func
@@ -15,13 +16,15 @@ from sqlalchemy.orm import Session
 
 from ..config import get_settings
 from ..database import get_db
-from ..models import Lead, Place, PlaceContact, PlacePhoto, PlaceTranslation, User, Verification
+from ..models import Lead, Place, PlaceContact, PlacePhoto, PlaceTranslation, Report, User, Verification
 from ..otp import InvalidIdentifier, normalize_identifier
 from ..presenters import cover_url, photo_url
+from .reports import report_title
 from ..schemas import (
     LANGUAGE_PATTERN,
     AdminPlaceOut,
     AdminPlaceSummary,
+    AdminReportOut,
     AdminSummary,
     CheckIn,
     CheckOut,
@@ -37,6 +40,7 @@ from ..schemas import (
     PlaceCreate,
     PlaceStatus,
     PlaceUpdate,
+    ReportReview,
     StatusChange,
     TranslationIn,
     TranslationOut,
@@ -142,6 +146,7 @@ def summary(db: Session = Depends(get_db)):
         counts[st or "live"] = counts.get(st or "live", 0) + n
     due = _due_query(db).order_by(Place.recheck_due.is_(None).desc(), Place.recheck_due).all()
     open_leads = db.query(Lead).filter(Lead.status.in_(("to_call", "called"))).count()
+    open_reports = db.query(Report).filter(Report.status == "open").count()
     recent = (
         db.query(Verification, Place.name)
         .join(Place, Place.id == Verification.place_id)
@@ -153,6 +158,7 @@ def summary(db: Session = Depends(get_db)):
         counts=counts,
         recheck_due=len(due),
         open_leads=open_leads,
+        open_reports=open_reports,
         due_places=[_summary(p) for p in due[:10]],
         recent_checks=[
             {"place_id": v.place_id, "place_name": name, "method": v.method, "checked_on": v.checked_on.isoformat(),
@@ -485,3 +491,86 @@ def update_lead(lead_id: int, data: LeadUpdate, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(lead)
     return lead
+
+
+# --- review queue (pilgrim reports) ------------------------------------------------------------
+
+
+def _report_out(db: Session, report: Report) -> AdminReportOut:
+    out = AdminReportOut.model_validate(report)
+    out.place_title = report_title(db, report)
+    if report.place_id:
+        place = db.get(Place, report.place_id)
+        out.place_status = place.status if place else None
+    reporter = db.get(User, report.user_id) if report.user_id else None
+    if reporter:
+        out.reporter_name = reporter.name
+        out.reporter_contact = reporter.email or reporter.phone
+    return out
+
+
+def _get_report(db: Session, report_id: int) -> Report:
+    report = db.get(Report, report_id)
+    if not report:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Report not found")
+    return report
+
+
+@router.get("/reports", response_model=list[AdminReportOut])
+def list_reports(
+    status_: Literal["open", "resolved", "dismissed", "all"] = Query("open", alias="status"),
+    place_id: int | None = None,
+    db: Session = Depends(get_db),
+):
+    query = db.query(Report)
+    if status_ != "all":
+        query = query.filter(Report.status == status_)
+    if place_id is not None:
+        query = query.filter(Report.place_id == place_id)
+    # Open reports oldest first (a queue); handled ones newest first.
+    order = Report.id.asc() if status_ == "open" else Report.id.desc()
+    return [_report_out(db, r) for r in query.order_by(order).all()]
+
+
+@router.patch("/reports/{report_id}", response_model=AdminReportOut)
+def review_report(report_id: int, data: ReportReview, db: Session = Depends(get_db), user: User = Depends(require_curator)):
+    report = _get_report(db, report_id)
+    report.status = data.status
+    if data.curator_note is not None:
+        report.curator_note = data.curator_note.strip() or None
+    if data.status == "open":  # reopened
+        report.resolved_by_id = None
+        report.resolved_at = None
+    else:
+        report.resolved_by_id = user.id
+        report.resolved_at = datetime.utcnow()
+    db.commit()
+    db.refresh(report)
+    return _report_out(db, report)
+
+
+@router.post("/reports/{report_id}/to-lead", response_model=AdminReportOut)
+def report_to_lead(report_id: int, db: Session = Depends(get_db), user: User = Depends(require_curator)):
+    """A "missing place" report becomes a lead to call; the report is marked resolved."""
+    report = _get_report(db, report_id)
+    if report.kind != "new_place":
+        raise HTTPException(status.HTTP_409_CONFLICT, "Only a missing-place report can become a lead")
+    if report.lead_id:
+        raise HTTPException(status.HTTP_409_CONFLICT, "This report is already a lead")
+    lead = Lead(
+        name=report.place_name or "Unnamed place",
+        area=report.area,
+        source=f"Pilgrim report #{report.id}",
+        notes=report.message,
+        created_by_id=user.id,
+    )
+    db.add(lead)
+    db.flush()
+    report.lead_id = lead.id
+    report.status = "resolved"
+    report.curator_note = report.curator_note or "Thank you! We will call and verify this place before adding it."
+    report.resolved_by_id = user.id
+    report.resolved_at = datetime.utcnow()
+    db.commit()
+    db.refresh(report)
+    return _report_out(db, report)

@@ -4,6 +4,7 @@ import type {
   AdminPhoto,
   AdminPlace,
   AdminPlaceSummary,
+  AdminReport,
   AdminSummary,
   AuthResponse,
   CheckMethod,
@@ -15,6 +16,9 @@ import type {
   Place,
   PlaceInput,
   PlaceStatus,
+  Report,
+  ReportInput,
+  ReportStatus,
   RouteResult,
   TranslatableFields,
   User,
@@ -94,6 +98,10 @@ export const api = {
   // `via`: stops between start and end, in travel order ("break journey").
   route: (params: { start: string; end: string; via?: string[]; max_detour_km?: number; sect?: string }) =>
     request<RouteResult>(`/route${qs(params)}`),
+
+  // "Report wrong info" / "Missing a place?" — reviewed by a curator before anything changes.
+  sendReport: (data: ReportInput) => request<Report>("/reports", { method: "POST", body: JSON.stringify(data) }),
+  myReports: () => request<Report[]>("/reports/mine"),
 };
 
 const json = (method: string, body?: unknown): RequestInit => ({ method, body: body === undefined ? undefined : JSON.stringify(body) });
@@ -144,6 +152,12 @@ export const adminApi = {
 
   leads: (status?: LeadStatus) => request<Lead[]>(`/admin/leads${qs({ status })}`),
   addLead: (data: { name: string; area?: string; source?: string; notes?: string }) => request<Lead>("/admin/leads", json("POST", data)),
+  reports: (params: { status?: ReportStatus | "all"; place_id?: number } = {}) =>
+    request<AdminReport[]>(`/admin/reports${qs(params)}`),
+  reviewReport: (reportId: number, data: { status: ReportStatus; curator_note?: string }) =>
+    request<AdminReport>(`/admin/reports/${reportId}`, json("PATCH", data)),
+  reportToLead: (reportId: number) => request<AdminReport>(`/admin/reports/${reportId}/to-lead`, json("POST")),
+
   updateLead: (leadId: number, data: Partial<Pick<Lead, "name" | "area" | "source" | "notes" | "status">>) =>
     request<Lead>(`/admin/leads/${leadId}`, json("PATCH", data)),
 };

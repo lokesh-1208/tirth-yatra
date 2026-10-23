@@ -41,6 +41,8 @@ class Settings(BaseSettings):
     # Uploaded photos (served at /uploads). Use object storage (S3 / GCS) in production.
     upload_dir: str = "uploads"
     max_upload_mb: float = 5.0
+    # Pilgrim reports ("Report wrong info", "Missing a place?"): most one user can send per day.
+    max_reports_per_day: int = 10
 
     # Map tiles, served to the app through /tiles (see routers/tiles.py). OpenStreetMap's servers are
     # for light use only: switch to a paid or self-hosted provider before launch.

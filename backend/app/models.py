@@ -193,3 +193,27 @@ class Lead(Base):
     created_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class Report(Base):
+    """Something a pilgrim sent: a correction to a place, or a place that is missing.
+
+    Nothing a pilgrim sends changes the app directly: a curator reviews it first.
+    """
+
+    __tablename__ = "reports"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    kind: Mapped[str] = mapped_column(String(20))  # correction / new_place
+    place_id: Mapped[int | None] = mapped_column(ForeignKey("places.id", ondelete="SET NULL"), nullable=True, index=True)
+    topic: Mapped[str] = mapped_column(String(20), default="other")  # timings / contact / location / name / stay / food / closed / other
+    message: Mapped[str] = mapped_column(Text)
+    place_name: Mapped[str | None] = mapped_column(String(200), nullable=True)  # for a new place
+    area: Mapped[str | None] = mapped_column(String(200), nullable=True)  # town / district, for a new place
+    status: Mapped[str] = mapped_column(String(20), default="open", index=True)  # open / resolved / dismissed
+    curator_note: Mapped[str | None] = mapped_column(Text, nullable=True)  # shown to the pilgrim
+    resolved_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    resolved_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    lead_id: Mapped[int | None] = mapped_column(ForeignKey("leads.id", ondelete="SET NULL"), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)

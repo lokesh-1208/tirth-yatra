@@ -54,6 +54,8 @@ function Gate() {
       <Stack.Screen name="settings/help" options={{ title: "Help & FAQ" }} />
       <Stack.Screen name="settings/about" options={{ title: "About Tirth Yatra" }} />
       <Stack.Screen name="admin" options={{ headerShown: false }} />
+      <Stack.Screen name="report" options={{ title: "Report" }} />
+      <Stack.Screen name="my-reports" options={{ title: "My reports" }} />
     </Stack>
   );
 }

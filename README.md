@@ -103,6 +103,12 @@ Curators open **Profile → Admin** (web first). Real curators: list their email
   A check sets the verified badge (who, when, how) and the re-check date (3, 6 or 12 months).
 - **Leads to call**: places heard of somewhere; mark called / rejected, or "Make draft" to start a place linked to it.
 
+- **Review queue**: pilgrims send "Report wrong info" (Place detail) or "Missing a place?" (after planning a route)
+  from the app; reports wait in **Admin → Review queue** (oldest first). Fix the place in its editor, then mark the report
+  resolved or dismissed with an optional note; the pilgrim sees the status and note in **Profile → My reports**.
+  A missing-place report can be turned into a lead in one tap. Nothing a pilgrim sends changes the app directly.
+  Limits: one open report per place and topic per user, `MAX_REPORTS_PER_DAY` (default 10) per user.
+
 Places that existed before the admin section are kept `live` (startup backfill), so the sample data still shows
 until you hide it. Photos are stored in `backend/uploads/` (git-ignored) and served at `/uploads/...`.
 
@@ -147,4 +153,5 @@ verified after you have confirmed it by call or local reference.
 - [ ] Photos, regional languages (i18n)
 - [ ] Sync My Yatras to the backend
 - [x] Admin section: roles, places, languages, contacts, cover photos, checks, publishing, leads
-- [ ] Review queue for pilgrim reports, festival dates (phase 2)
+- [x] Pilgrim reports (wrong info, missing place) and the admin review queue
+- [ ] Festival dates, Hindi app screens, real email OTP (phase 2)
