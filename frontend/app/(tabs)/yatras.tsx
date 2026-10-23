@@ -1,5 +1,5 @@
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
-import { useRouter } from "expo-router";
+import { Href, useRouter } from "expo-router";
 import { FlatList, StyleSheet, View } from "react-native";
 import { ActivityIndicator, Card, Text } from "react-native-paper";
 
@@ -29,7 +29,7 @@ export default function MyYatras() {
       }
       renderItem={({ item }) => (
         <View style={{ paddingHorizontal: spacing.md }}>
-          <YatraCard yatra={item} onPress={() => router.push(`/yatra/${item.id}`)} />
+          <YatraCard yatra={item} onPress={() => router.push(`/yatra/${item.id}` as Href)} />
         </View>
       )}
       ListEmptyComponent={

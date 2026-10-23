@@ -1,5 +1,5 @@
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
-import { useRouter } from "expo-router";
+import { Href, useRouter } from "expo-router";
 import { useState } from "react";
 import { FlatList, StyleSheet, View } from "react-native";
 import { ActivityIndicator, Card, IconButton, Text } from "react-native-paper";
@@ -101,7 +101,7 @@ export default function PlanRoute() {
     setSavingYatra(true);
     try {
       const y = await createFromRoute(result, labels);
-      router.push(`/yatra/${y.id}`);
+      router.push(`/yatra/${y.id}` as Href);
     } finally {
       setSavingYatra(false);
     }
