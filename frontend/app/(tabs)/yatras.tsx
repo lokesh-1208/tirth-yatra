@@ -1,5 +1,5 @@
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
-import { useRouter } from "expo-router";
+import { Href, useRouter } from "expo-router";
 import { FlatList, StyleSheet, View } from "react-native";
 import { ActivityIndicator, Card, Text } from "react-native-paper";
 
@@ -29,7 +29,7 @@ export default function MyYatras() {
       }
       renderItem={({ item }) => (
         <View style={{ paddingHorizontal: spacing.md }}>
-          <YatraCard yatra={item} onPress={() => router.push(`/yatra/${item.id}`)} />
+          <YatraCard yatra={item} onPress={() => router.push(`/yatra/${item.id}` as Href)} />
         </View>
       )}
       ListEmptyComponent={
@@ -67,6 +67,11 @@ function YatraCard({ yatra, onPress }: { yatra: Yatra; onPress: () => void }) {
                 {yatra.total_km} km · {total} stop{total === 1 ? "" : "s"} · saved{" "}
                 {new Date(yatra.created_at).toLocaleDateString()}
               </Text>
+              {!!yatra.via?.length && (
+                <Text testID={`yatra-card-via-${yatra.id}`} variant="bodySmall" style={{ color: colors.warnText }} numberOfLines={1}>
+                  via {yatra.via.map((b) => b.label.split(",")[0]).join(", ")}
+                </Text>
+              )}
             </View>
             <MaterialCommunityIcons name="chevron-right" size={22} color={colors.muted} />
           </View>

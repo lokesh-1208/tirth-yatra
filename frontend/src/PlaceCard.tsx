@@ -4,6 +4,7 @@ import { useRouter } from "expo-router";
 import { Image, StyleSheet, View } from "react-native";
 import { Card, IconButton, Text } from "react-native-paper";
 
+import { assetUrl } from "./api";
 import { capitalize, colors, fontFamily, KIND_ICON, KIND_LABEL, radius, spacing } from "./theme";
 import type { Place, RoutePlace } from "./types";
 import { Pill } from "./ui";
@@ -71,7 +72,8 @@ export function PlaceCard({
 
 /** Photo if we have one, otherwise a soft gradient tile with the place-kind icon. */
 function Thumb({ place }: { place: Place }) {
-  if (place.photo_url) return <Image source={{ uri: place.photo_url }} style={styles.thumb} />;
+  const uri = assetUrl(place.photo_url);
+  if (uri) return <Image source={{ uri }} style={styles.thumb} />;
   return (
     <LinearGradient colors={[colors.primaryLight, colors.goldLight]} style={[styles.thumb, styles.thumbFallback]}>
       <MaterialCommunityIcons name={(KIND_ICON[place.kind] ?? "map-marker") as any} size={34} color={colors.primary} />

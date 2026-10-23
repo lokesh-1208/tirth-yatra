@@ -1,4 +1,4 @@
-import { useRouter } from "expo-router";
+import { Href, useRouter } from "expo-router";
 import { useState } from "react";
 import { ScrollView, Share, StyleSheet, View } from "react-native";
 import { Avatar, Card, Divider, List, Switch, Text } from "react-native-paper";
@@ -119,6 +119,22 @@ export default function Profile() {
             <Button testID="profile-save" title="Save preferences" onPress={save} loading={saving} disabled={!dirty} />
           </Card.Content>
         </Card>
+
+        {user.role === "curator" && (
+          <>
+            <SectionHeader title="Curator" />
+            <Card mode="outlined" style={styles.card}>
+              <List.Item
+                testID="settings-admin"
+                title="Admin"
+                description="Add places, log checks, make them live"
+                left={(p) => <List.Icon {...p} icon="shield-account-outline" color={colors.primary} />}
+                right={(p) => <List.Icon {...p} icon="chevron-right" />}
+                onPress={() => router.push("/admin" as Href)}
+              />
+            </Card>
+          </>
+        )}
 
         <SectionHeader title="Settings" />
         <Card mode="outlined" style={styles.card}>

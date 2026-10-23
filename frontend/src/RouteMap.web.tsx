@@ -1,9 +1,10 @@
 import { createElement, useEffect, useMemo } from "react";
 
+import { TILE_URL } from "./api";
 import { buildMapHtml, parseMapMessage, RouteMapProps } from "./mapHtml";
 
 export function RouteMap({ route, places, height = 320, onSelectPlace }: RouteMapProps) {
-  const html = useMemo(() => buildMapHtml({ route, places }), [route, places]);
+  const html = useMemo(() => buildMapHtml({ route, places }, TILE_URL), [route, places]);
 
   useEffect(() => {
     const handler = (e: MessageEvent) => {

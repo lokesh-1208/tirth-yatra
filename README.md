@@ -37,7 +37,13 @@ verified with `npx expo export --platform web`. `query-string` is listed explici
 
 In VS Code: open `tirth-yatra.code-workspace`, then Terminal > Run Task > "start everything".
 
-### 3. Automation
+### 3. Unit tests (developer checks)
+```bash
+cd backend && pytest                 # backend unit + API tests (offline, no Nominatim/OSRM calls)
+cd frontend && npm run test:unit     # pure TS helpers, Node 22.18+ (runs .ts directly)
+```
+
+### 4. Automation
 ```bash
 cd automation
 npm install
@@ -51,6 +57,8 @@ Enter an email or mobile number, get a 6-digit OTP, done. First login creates th
 asks for name + faith. There is no password, so nothing to reset: lost access = request a new OTP.
 
 **Dummy test user** (dev only): `test@tirthyatra.app` or `9999999999`, OTP always `999999`.
+**Dummy curator** (dev only, opens the admin section): `curator@tirthyatra.app`, OTP `999999`. Any
+`curator…@qa.tirthyatra.app` email is a curator too (isolated curators for automation).
 Any `*@qa.tirthyatra.app` email also uses `999999` (used by the automation to get isolated users).
 Set `ENABLE_TEST_USER=false` in production. Real OTPs are currently only printed to the backend
 console (`app/otp.py: send_otp`) until an SMS/email provider is wired in.
@@ -66,7 +74,37 @@ back to the built-in city list / a straight line (`source: "straight"` in the re
 The public Nominatim and OSRM servers are **free but for light use only** (about 1 request/second, no
 SLA). Before real traffic, self-host them or swap the providers: set `NOMINATIM_URL` / `OSRM_URL`
 (`backend/.env`), or replace `app/geocoding.py` / `app/routing.py`. `EXTERNAL_GEO_ENABLED=false` turns both off.
-The map is Leaflet with OpenStreetMap tiles (also light-use; use a tile provider for production).
+The maps are Leaflet with OpenStreetMap tiles, loaded **through the backend** (`/tiles/{z}/{x}/{y}.png`): it sends
+the app's User-Agent and caches tiles on disk (`backend/tile-cache/`, 7 days), because OSM refuses tile requests it
+cannot identify. Still light use only: set `TILE_URL_TEMPLATE` (backend) or `EXPO_PUBLIC_MAP_TILE_URL` (app) to a
+paid or self-hosted provider before launch.
+
+### Break journey (stops on the way)
+Pilgrims can add up to 5 stops between start and end on **Plan route** ("Add a stop (your own path)").
+`/route` takes them as repeated `via` parameters in travel order, e.g.
+`/route?start=Jabalpur&end=Nemawar&via=Hoshangabad`. OSRM routes through every stop; offline it falls back to
+straight lines through the stops. The response has `stops` (label, lat, lng, `distance_from_start_km`), the map shows
+them as gold square pins, and a saved yatra keeps them (`via`) and shows them in its timeline as "Break journey".
+The limit is `MAX_STOPS` in `backend/app/routing.py` and `frontend/src/routeStops.ts` (keep them equal).
+
+## Admin section (curators)
+Curators open **Profile → Admin** (web first). Real curators: list their email / phone in `CURATOR_IDENTIFIERS`
+(`backend/.env`); they get the role on their next login. Every `/admin/*` call checks the role (403 otherwise).
+
+- **Admin home**: counts by status, re-check due list, recent checks, leads to follow up.
+- **Places**: search and filter (draft, in review, live, hidden, re-check due).
+- **Add a place**: name, sect, kind, town and a GPS pin (tap the map or "Use my GPS location"). It starts as a **draft**.
+- **Place editor**: one Name field plus an "Editing in" language switcher (Name, About, Visiting and Landmarks are
+  saved per language in `place_translations`; pilgrims get their app language, falling back to `DEFAULT_LANGUAGE`),
+  location and landmarks, visiting details, contacts (shown to pilgrims only with a consent date and
+  "show to pilgrims"), cover photo (JPEG/PNG/WebP up to 5 MB, uploaded with a "no deity image" confirmation;
+  no cover means pilgrims see the auto cover), **Log a check** with history.
+- **Publishing**: only `live` places reach pilgrims. A place can go live only after at least one check is logged.
+  A check sets the verified badge (who, when, how) and the re-check date (3, 6 or 12 months).
+- **Leads to call**: places heard of somewhere; mark called / rejected, or "Make draft" to start a place linked to it.
+
+Places that existed before the admin section are kept `live` (startup backfill), so the sample data still shows
+until you hide it. Photos are stored in `backend/uploads/` (git-ignored) and served at `/uploads/...`.
 
 ## App structure (UI)
 Built with **React Native Paper** (Material Design 3). Colours, fonts and spacing live in
@@ -103,8 +141,10 @@ verified after you have confirmed it by call or local reference.
 - [x] Places list, detail, save/unsave
 - [x] Route search (places within X km of the A→B line)
 - [x] Real geocoding (Nominatim) + road routes (OSRM) + route map (Leaflet / OpenStreetMap)
+- [x] Break journey: up to 5 stops between start and end, saved with the yatra
 - [ ] PostGIS corridor query
 - [x] Material Design 3 UI (React Native Paper), full tab structure, My Yatras (on device)
 - [ ] Photos, regional languages (i18n)
 - [ ] Sync My Yatras to the backend
-- [ ] Admin panel to add and verify places
+- [x] Admin section: roles, places, languages, contacts, cover photos, checks, publishing, leads
+- [ ] Review queue for pilgrim reports, festival dates (phase 2)
