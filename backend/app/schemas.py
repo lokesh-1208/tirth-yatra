@@ -80,11 +80,18 @@ class GeoPointOut(BaseModel):
     lng: float
 
 
+class RouteStop(GeoPointOut):
+    """A stop the pilgrim chose between start and end ("break journey")."""
+
+    distance_from_start_km: float
+
+
 class RouteResult(BaseModel):
     start: str
     end: str
     start_point: GeoPointOut
     end_point: GeoPointOut
+    stops: list[RouteStop] = []  # in travel order; empty for a direct A -> B trip
     total_km: float
     duration_min: float | None = None
     source: str = "straight"  # "road" when a real road route was found

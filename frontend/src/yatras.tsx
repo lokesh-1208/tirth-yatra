@@ -13,7 +13,8 @@ import type { RouteResult, Yatra } from "./types";
 type YatraState = {
   yatras: Yatra[];
   ready: boolean;
-  createFromRoute: (route: RouteResult, labels: { start: string; end: string }) => Promise<Yatra>;
+  /** `labels.via`: names for the break-journey stops, in order (defaults to the names the API returned). */
+  createFromRoute: (route: RouteResult, labels: { start: string; end: string; via?: string[] }) => Promise<Yatra>;
   toggleVisited: (yatraId: string, placeId: number) => Promise<void>;
   rename: (yatraId: string, name: string) => Promise<void>;
   remove: (yatraId: string) => Promise<void>;
@@ -66,6 +67,10 @@ export function YatraProvider({ children }: { children: ReactNode }) {
           name: `${short(labels.start)} to ${short(labels.end)}`,
           start: labels.start,
           end: labels.end,
+          via: (route.stops ?? []).map((st, i) => ({
+            label: labels.via?.[i] ?? st.label,
+            distance_from_start_km: st.distance_from_start_km,
+          })),
           total_km: route.total_km,
           duration_min: route.duration_min,
           created_at: new Date().toISOString(),

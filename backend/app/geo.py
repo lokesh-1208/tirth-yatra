@@ -82,6 +82,30 @@ def project_on_polyline(
     return best_dist, best_along
 
 
+def locate_in_order(
+    targets: "Sequence[tuple[float, float]]",
+    points: "Sequence[tuple[float, float]]",
+    cumulative_km: "Sequence[float]",
+) -> list[float]:
+    """Distance from the start along the route for each target, searching forward from the previous one.
+
+    Used for the stops a route was built through: they are visited in order, so a route that
+    doubles back on itself still gives each stop the distance at which it is actually reached.
+    """
+    out: list[float] = []
+    first_seg = 0
+    for tlat, tlng in targets:
+        best_dist, best_along, best_seg = float("inf"), cumulative_km[first_seg], first_seg
+        for i in range(first_seg, len(points) - 1):
+            (alat, alon), (blat, blon) = points[i], points[i + 1]
+            dist, along = project_on_segment(tlat, tlng, alat, alon, blat, blon)
+            if dist < best_dist:
+                best_dist, best_along, best_seg = dist, cumulative_km[i] + along, i
+        out.append(best_along)
+        first_seg = best_seg
+    return out
+
+
 def cumulative_lengths(points: "Sequence[tuple[float, float]]") -> list[float]:
     out = [0.0]
     for i in range(1, len(points)):

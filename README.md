@@ -37,7 +37,13 @@ verified with `npx expo export --platform web`. `query-string` is listed explici
 
 In VS Code: open `tirth-yatra.code-workspace`, then Terminal > Run Task > "start everything".
 
-### 3. Automation
+### 3. Unit tests (developer checks)
+```bash
+cd backend && pytest                 # backend unit + API tests (offline, no Nominatim/OSRM calls)
+cd frontend && npm run test:unit     # pure TS helpers, Node 22.18+ (runs .ts directly)
+```
+
+### 4. Automation
 ```bash
 cd automation
 npm install
@@ -67,6 +73,14 @@ The public Nominatim and OSRM servers are **free but for light use only** (about
 SLA). Before real traffic, self-host them or swap the providers: set `NOMINATIM_URL` / `OSRM_URL`
 (`backend/.env`), or replace `app/geocoding.py` / `app/routing.py`. `EXTERNAL_GEO_ENABLED=false` turns both off.
 The map is Leaflet with OpenStreetMap tiles (also light-use; use a tile provider for production).
+
+### Break journey (stops on the way)
+Pilgrims can add up to 5 stops between start and end on **Plan route** ("Add a stop (your own path)").
+`/route` takes them as repeated `via` parameters in travel order, e.g.
+`/route?start=Jabalpur&end=Nemawar&via=Hoshangabad`. OSRM routes through every stop; offline it falls back to
+straight lines through the stops. The response has `stops` (label, lat, lng, `distance_from_start_km`), the map shows
+them as gold square pins, and a saved yatra keeps them (`via`) and shows them in its timeline as "Break journey".
+The limit is `MAX_STOPS` in `backend/app/routing.py` and `frontend/src/routeStops.ts` (keep them equal).
 
 ## App structure (UI)
 Built with **React Native Paper** (Material Design 3). Colours, fonts and spacing live in
@@ -103,6 +117,7 @@ verified after you have confirmed it by call or local reference.
 - [x] Places list, detail, save/unsave
 - [x] Route search (places within X km of the A→B line)
 - [x] Real geocoding (Nominatim) + road routes (OSRM) + route map (Leaflet / OpenStreetMap)
+- [x] Break journey: up to 5 stops between start and end, saved with the yatra
 - [ ] PostGIS corridor query
 - [x] Material Design 3 UI (React Native Paper), full tab structure, My Yatras (on device)
 - [ ] Photos, regional languages (i18n)

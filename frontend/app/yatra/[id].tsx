@@ -5,6 +5,7 @@ import { Linking, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { Button as PaperButton, Checkbox, Dialog, Portal, ProgressBar, Text, TextInput } from "react-native-paper";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { directionsUrl, routeTitle, timelineItems } from "../../src/routeStops";
 import { colors, fontFamily, KIND_LABEL, radius, spacing } from "../../src/theme";
 import { Button, Empty, Hero, Pill, Placeholder, SectionHeader } from "../../src/ui";
 import { useYatras } from "../../src/yatras";
@@ -29,7 +30,9 @@ export default function YatraDetail() {
 
   const done = yatra.stops.filter((s) => s.visited).length;
   const total = yatra.stops.length;
-  const mapsUrl = `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(yatra.start)}&destination=${encodeURIComponent(yatra.end)}`;
+  const breaks = yatra.via ?? [];
+  const breakLabels = breaks.map((b) => b.label);
+  const mapsUrl = directionsUrl(yatra.start, breakLabels, yatra.end);
 
   return (
     <ScrollView contentContainerStyle={{ paddingBottom: spacing.xl }}>
@@ -37,8 +40,8 @@ export default function YatraDetail() {
         <Text testID="yatra-name" variant="headlineMedium" style={{ color: "#fff" }}>
           {yatra.name}
         </Text>
-        <Text style={{ color: "rgba(255,255,255,0.9)", marginTop: 2 }} numberOfLines={2}>
-          {yatra.start} → {yatra.end}
+        <Text testID="yatra-route" style={{ color: "rgba(255,255,255,0.9)", marginTop: 2 }} numberOfLines={2}>
+          {breaks.length ? routeTitle(yatra.start, breakLabels, yatra.end) : `${yatra.start} → ${yatra.end}`}
         </Text>
         <View style={{ flexDirection: "row", flexWrap: "wrap", gap: spacing.sm, marginTop: spacing.md }}>
           <Pill tone="onDark" icon="road-variant" label={`${yatra.total_km} km`} />
@@ -67,31 +70,45 @@ export default function YatraDetail() {
         <SectionHeader title="Stops on the way" />
         <View style={styles.timeline}>
           <TimelineNode icon="map-marker" title={yatra.start} subtitle="Start" first />
-          {yatra.stops.map((s) => (
-            <Pressable key={s.place_id} onPress={() => router.push(`/place/${s.place_id}`)} style={styles.stopRow}>
-              <View style={styles.rail}>
-                <View style={styles.railLine} />
-                <View style={[styles.dot, s.visited && { backgroundColor: colors.success, borderColor: colors.success }]} />
-                <View style={styles.railLine} />
-              </View>
-              <View style={[styles.stopCard, s.visited && { opacity: 0.75 }]}>
-                <View style={{ flex: 1 }}>
-                  <Text variant="titleSmall" style={{ fontFamily: fontFamily.bold }} numberOfLines={2}>
-                    {s.name}
-                  </Text>
-                  <Text variant="bodySmall" style={{ color: colors.muted }}>
-                    {[KIND_LABEL[s.kind] ?? s.kind, s.city].filter(Boolean).join(" · ")} · {s.distance_from_start_km} km from start
-                  </Text>
+          {timelineItems(yatra.stops, breaks).map((item) => {
+            if (item.type === "break")
+              return (
+                <View key={`break-${item.index}`} testID={`yatra-break-${item.index}`}>
+                  <TimelineNode
+                    icon="map-marker-radius"
+                    title={item.brk.label}
+                    subtitle={`Break journey · ${item.brk.distance_from_start_km} km from start`}
+                    tone="break"
+                  />
                 </View>
-                <Checkbox.Android
-                  testID={`yatra-stop-${s.place_id}`}
-                  status={s.visited ? "checked" : "unchecked"}
-                  color={colors.success}
-                  onPress={() => toggleVisited(yatra.id, s.place_id)}
-                />
-              </View>
-            </Pressable>
-          ))}
+              );
+            const s = item.stop;
+            return (
+              <Pressable key={s.place_id} onPress={() => router.push(`/place/${s.place_id}`)} style={styles.stopRow}>
+                <View style={styles.rail}>
+                  <View style={styles.railLine} />
+                  <View style={[styles.dot, s.visited && { backgroundColor: colors.success, borderColor: colors.success }]} />
+                  <View style={styles.railLine} />
+                </View>
+                <View style={[styles.stopCard, s.visited && { opacity: 0.75 }]}>
+                  <View style={{ flex: 1 }}>
+                    <Text variant="titleSmall" style={{ fontFamily: fontFamily.bold }} numberOfLines={2}>
+                      {s.name}
+                    </Text>
+                    <Text variant="bodySmall" style={{ color: colors.muted }}>
+                      {[KIND_LABEL[s.kind] ?? s.kind, s.city].filter(Boolean).join(" · ")} · {s.distance_from_start_km} km from start
+                    </Text>
+                  </View>
+                  <Checkbox.Android
+                    testID={`yatra-stop-${s.place_id}`}
+                    status={s.visited ? "checked" : "unchecked"}
+                    color={colors.success}
+                    onPress={() => toggleVisited(yatra.id, s.place_id)}
+                  />
+                </View>
+              </Pressable>
+            );
+          })}
           <TimelineNode icon="flag-checkered" title={yatra.end} subtitle="Destination" last />
         </View>
 
@@ -159,18 +176,20 @@ function TimelineNode({
   subtitle,
   first,
   last,
+  tone,
 }: {
   icon: string;
   title: string;
   subtitle: string;
   first?: boolean;
   last?: boolean;
+  tone?: "break";
 }) {
   return (
     <View style={styles.stopRow}>
       <View style={styles.rail}>
         <View style={[styles.railLine, first && { backgroundColor: "transparent" }]} />
-        <View style={styles.endpoint}>
+        <View style={[styles.endpoint, tone === "break" && { backgroundColor: colors.gold }]}>
           <MaterialCommunityIcons name={icon as any} size={16} color="#fff" />
         </View>
         <View style={[styles.railLine, last && { backgroundColor: "transparent" }]} />

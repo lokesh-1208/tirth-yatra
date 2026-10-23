@@ -1,3 +1,4 @@
+import { buildQuery as qs } from "./routeStops";
 import type { AuthResponse, GeoPoint, OtpSent, Place, RouteResult, User } from "./types";
 
 export const API_URL = (process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:8000").replace(/\/$/, "");
@@ -43,15 +44,6 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   return body as T;
 }
 
-const qs = (params: Record<string, string | number | boolean | undefined | null>) => {
-  const p = new URLSearchParams();
-  Object.entries(params).forEach(([k, v]) => {
-    if (v !== undefined && v !== null && v !== "") p.append(k, String(v));
-  });
-  const s = p.toString();
-  return s ? `?${s}` : "";
-};
-
 export const api = {
   requestOtp: (identifier: string) =>
     request<OtpSent>("/auth/otp/request", { method: "POST", body: JSON.stringify({ identifier }) }),
@@ -68,6 +60,7 @@ export const api = {
   save: (id: number) => request<void>(`/places/${id}/save`, { method: "POST" }),
   unsave: (id: number) => request<void>(`/places/${id}/save`, { method: "DELETE" }),
   geocode: (q: string) => request<GeoPoint[]>(`/geocode${qs({ q })}`),
-  route: (params: { start: string; end: string; max_detour_km?: number; sect?: string }) =>
+  // `via`: stops between start and end, in travel order ("break journey").
+  route: (params: { start: string; end: string; via?: string[]; max_detour_km?: number; sect?: string }) =>
     request<RouteResult>(`/route${qs(params)}`),
 };

@@ -1,9 +1,9 @@
-import type { RoutePlace, RouteResult } from "./types";
+import type { RoutePlace, RouteResult, RouteStop } from "./types";
 
 export type MapPlace = Pick<RoutePlace, "id" | "name" | "latitude" | "longitude" | "verified" | "detour_km">;
 
 export type RouteMapProps = {
-  route: Pick<RouteResult, "geometry" | "start_point" | "end_point" | "source">;
+  route: Pick<RouteResult, "geometry" | "start_point" | "end_point" | "source"> & { stops?: RouteStop[] };
   places: MapPlace[];
   height?: number;
   onSelectPlace?: (id: number) => void;
@@ -17,6 +17,7 @@ export function buildMapHtml({ route, places }: Pick<RouteMapProps, "route" | "p
     line: route.geometry,
     start: route.start_point,
     end: route.end_point,
+    stops: (route.stops ?? []).map((st) => ({ label: st.label, lat: st.lat, lng: st.lng, km: st.distance_from_start_km })),
     straight: route.source !== "road",
     places: places.map((p) => ({
       id: p.id,
@@ -35,7 +36,7 @@ export function buildMapHtml({ route, places }: Pick<RouteMapProps, "route" | "p
   html,body,#map{height:100%;margin:0;background:#f4efe6}
   .pin{width:22px;height:22px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.4)}
   .pin.place{background:#c2410c}.pin.unverified{background:#d6a05c}
-  .pin.end{background:#15803d}.pin.start{background:#1d4ed8}
+  .pin.end{background:#15803d}.pin.start{background:#1d4ed8}.pin.stop{background:#b7791f;border-radius:4px;transform:none}
   .pop b{display:block;margin-bottom:2px}.pop a{color:#c2410c;font-weight:700;cursor:pointer}
   .note{position:absolute;z-index:1000;left:8px;bottom:8px;background:#fff;padding:3px 8px;border-radius:6px;font:12px sans-serif;box-shadow:0 1px 3px rgba(0,0,0,.3)}
 </style></head>
@@ -56,6 +57,10 @@ export function buildMapHtml({ route, places }: Pick<RouteMapProps, "route" | "p
   L.marker([D.start.lat, D.start.lng], {icon:pin("start")}).addTo(map).bindPopup("<b>Start</b>"+esc(D.start.label));
   L.marker([D.end.lat, D.end.lng], {icon:pin("end")}).addTo(map).bindPopup("<b>Destination</b>"+esc(D.end.label));
   var bounds = line.getBounds();
+  D.stops.forEach(function(s, i){
+    L.marker([s.lat, s.lng], {icon:pin("stop")}).addTo(map).bindPopup("<b>Break journey "+(i+1)+"</b>"+esc(s.label)+"<br>"+s.km+" km from start");
+    bounds.extend([s.lat, s.lng]);
+  });
   D.places.forEach(function(p){
     var m = L.marker([p.lat, p.lng], {icon:pin(p.verified ? "place" : "place unverified")}).addTo(map);
     m.bindPopup('<div class="pop"><b>'+esc(p.name)+'</b>'+p.detour+' km from route<br><a data-id="'+p.id+'">View details</a></div>');

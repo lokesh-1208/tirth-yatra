@@ -37,11 +37,15 @@ export type RoutePlace = Place & { detour_km: number; distance_from_start_km: nu
 
 export type GeoPoint = { label: string; lat: number; lng: number };
 
+/** A stop the pilgrim chose between start and end ("break journey"). */
+export type RouteStop = GeoPoint & { distance_from_start_km: number };
+
 export type RouteResult = {
   start: string;
   end: string;
   start_point: GeoPoint;
   end_point: GeoPoint;
+  stops: RouteStop[]; // in travel order; empty for a direct trip
   total_km: number;
   duration_min: number | null;
   source: "road" | "straight";
@@ -63,11 +67,16 @@ export type YatraStop = {
   visited: boolean;
 };
 
+/** A break-journey stop saved with a yatra. */
+export type YatraBreak = { label: string; distance_from_start_km: number };
+
 export type Yatra = {
   id: string;
   name: string;
   start: string;
   end: string;
+  /** Break-journey stops in travel order. Missing on yatras saved before this feature. */
+  via?: YatraBreak[];
   total_km: number;
   duration_min: number | null;
   created_at: string;

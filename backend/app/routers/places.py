@@ -3,9 +3,9 @@ from sqlalchemy.orm import Session
 
 from ..database import get_db
 from .. import geocoding, routing
-from ..geo import cumulative_lengths, parse_coordinates, project_on_polyline
+from ..geo import cumulative_lengths, locate_in_order, parse_coordinates, project_on_polyline
 from ..models import Place, SavedPlace, User
-from ..schemas import GeoPointOut, PlaceOut, RoutePlace, RouteResult
+from ..schemas import GeoPointOut, PlaceOut, RoutePlace, RouteResult, RouteStop
 from ..security import get_current_user, get_optional_user
 
 router = APIRouter(tags=["places"])
@@ -107,13 +107,17 @@ def geocode(q: str = Query(..., min_length=2, max_length=100), limit: int = Quer
 def places_along_route(
     start: str = Query(..., description="Place name or 'lat,lng'"),
     end: str = Query(..., description="Place name or 'lat,lng'"),
+    via: list[str] = Query(
+        default=[],
+        description=f"Stops between start and end, in travel order (repeat the parameter, at most {routing.MAX_STOPS})",
+    ),
     max_detour_km: float = Query(25, ge=1, le=200),
     faith: str | None = None,
     sect: str | None = None,
     db: Session = Depends(get_db),
     user: User | None = Depends(get_optional_user),
 ):
-    """Places within `max_detour_km` of the driving route A→B, ordered along the trip.
+    """Places within `max_detour_km` of the driving route A→(stops→)B, ordered along the trip.
 
     The route comes from OSRM (falls back to a straight line if it is unreachable; see
     `source` in the response). Switch to a PostGIS ST_DWithin corridor query when moving to PostgreSQL.
@@ -126,7 +130,20 @@ def places_along_route(
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, f"Unknown end location: {end}")
     (a_label, alat, alon), (b_label, blat, blon) = a, b
 
-    road = routing.get_route(alat, alon, blat, blon)
+    stop_texts = [t.strip() for t in via if t and t.strip()]
+    if len(stop_texts) > routing.MAX_STOPS:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_ENTITY, f"At most {routing.MAX_STOPS} stops are allowed on one route"
+        )
+    stops: list[tuple[str, float, float]] = []
+    for i, text in enumerate(stop_texts, start=1):
+        hit = _resolve(text)
+        if not hit:
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, f"Unknown stop {i}: {text}")
+        stops.append(hit)
+
+    waypoints = [(alat, alon), *((lat, lng) for _, lat, lng in stops), (blat, blon)]
+    road = routing.get_route(waypoints)
     cumulative = cumulative_lengths(road.points)
 
     query = db.query(Place)
@@ -149,6 +166,12 @@ def places_along_route(
         end=b_label,
         start_point=GeoPointOut(label=a_label, lat=alat, lng=alon),
         end_point=GeoPointOut(label=b_label, lat=blat, lng=blon),
+        stops=[
+            RouteStop(label=label, lat=lat, lng=lng, distance_from_start_km=round(along, 1))
+            for (label, lat, lng), along in zip(
+                stops, locate_in_order([(lat, lng) for _, lat, lng in stops], road.points, cumulative)
+            )
+        ],
         total_km=round(road.distance_km, 1),
         duration_min=round(road.duration_min) if road.duration_min else None,
         source=road.source,

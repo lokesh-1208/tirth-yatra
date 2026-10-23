@@ -2,12 +2,24 @@ import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { useRouter } from "expo-router";
 import { useState } from "react";
 import { FlatList, StyleSheet, View } from "react-native";
-import { ActivityIndicator, Card, Text } from "react-native-paper";
+import { ActivityIndicator, Card, IconButton, Text } from "react-native-paper";
 
 import { api } from "../../src/api";
 import { LocationInput } from "../../src/LocationInput";
 import { PlaceCard } from "../../src/PlaceCard";
 import { RouteMap } from "../../src/RouteMap";
+import {
+  addStop,
+  canAddStop,
+  locationParam,
+  MAX_STOPS,
+  removeStop,
+  reverseStops,
+  StopDraft,
+  updateStop,
+  viaLabels,
+  viaParams,
+} from "../../src/routeStops";
 import { colors, fontFamily, radius, spacing } from "../../src/theme";
 import type { GeoPoint, Place, RouteResult } from "../../src/types";
 import { Button, Chip, Empty, ErrorText, PageHeader, SectionHeader } from "../../src/ui";
@@ -26,8 +38,9 @@ export default function PlanRoute() {
   const [end, setEnd] = useState("");
   const [startPoint, setStartPoint] = useState<GeoPoint | null>(null);
   const [endPoint, setEndPoint] = useState<GeoPoint | null>(null);
+  const [stops, setStops] = useState<StopDraft[]>([]); // "break journey" stops between start and end
   const [detour, setDetour] = useState(25);
-  const [labels, setLabels] = useState<{ start: string; end: string } | null>(null); // names shown in the summary
+  const [labels, setLabels] = useState<{ start: string; end: string; via: string[] } | null>(null); // names shown in the summary
   const router = useRouter();
   const { createFromRoute } = useYatras();
   const [result, setResult] = useState<RouteResult | null>(null);
@@ -41,9 +54,18 @@ export default function PlanRoute() {
     setLoading(true);
     try {
       // A picked suggestion is sent as exact coordinates so the backend doesn't re-guess an ambiguous name.
-      const at = (p: GeoPoint | null, text: string) => (p ? `${p.lat},${p.lng}` : text.trim());
-      const res = await api.route({ start: at(startPoint, start), end: at(endPoint, end), max_detour_km: detour });
-      setLabels({ start: startPoint?.label ?? res.start, end: endPoint?.label ?? res.end });
+      const res = await api.route({
+        start: locationParam(start, startPoint),
+        end: locationParam(end, endPoint),
+        via: viaParams(stops),
+        max_detour_km: detour,
+      });
+      const via = viaLabels(stops);
+      setLabels({
+        start: startPoint?.label ?? res.start,
+        end: endPoint?.label ?? res.end,
+        via: res.stops.map((st, i) => via[i] ?? st.label),
+      });
       setResult(res);
     } catch (e: any) {
       setResult(null);
@@ -58,6 +80,7 @@ export default function PlanRoute() {
     setEnd(start);
     setStartPoint(endPoint);
     setEndPoint(startPoint);
+    setStops(reverseStops(stops));
   };
 
   const toggleSave = async (p: Place) => {
@@ -113,6 +136,37 @@ export default function PlanRoute() {
                   <Button testID="route-swap" title="Swap" variant="text" icon="swap-vertical" onPress={swap} />
                   <View style={styles.line} />
                 </View>
+                {stops.map((st, i) => (
+                  <View key={st.key} style={styles.stopRow} testID={`route-stop-row-${i}`}>
+                    <View style={{ flex: 1 }}>
+                      <LocationInput
+                        testID={`route-stop-${i}`}
+                        label={`Break journey at (stop ${i + 1})`}
+                        icon="map-marker-radius-outline"
+                        value={st.text}
+                        onChangeText={(text) => setStops((cur) => updateStop(cur, st.key, { text }))}
+                        onPick={(point) => setStops((cur) => updateStop(cur, st.key, { point }))}
+                        placeholder="A town you want to pass through"
+                      />
+                    </View>
+                    <IconButton
+                      testID={`route-stop-remove-${i}`}
+                      icon="close"
+                      accessibilityLabel={`Remove stop ${i + 1}`}
+                      onPress={() => setStops((cur) => removeStop(cur, st.key))}
+                      style={{ marginTop: spacing.sm }}
+                    />
+                  </View>
+                ))}
+                <Button
+                  testID="route-add-stop"
+                  title={canAddStop(stops) ? "Add a stop (your own path)" : `Up to ${MAX_STOPS} stops`}
+                  icon="map-marker-plus-outline"
+                  variant="text"
+                  disabled={!canAddStop(stops)}
+                  onPress={() => setStops((cur) => addStop(cur))}
+                  style={styles.addStop}
+                />
                 <LocationInput
                   testID="route-end"
                   label="To"
@@ -147,7 +201,8 @@ export default function PlanRoute() {
               <>
                 <View style={styles.summary}>
                   <Text testID="route-summary" variant="titleMedium" style={styles.summaryTitle}>
-                    {labels?.start ?? result.start} → {labels?.end ?? result.end} · {result.total_km} km
+                    {[labels?.start ?? result.start, ...(labels?.via ?? result.stops.map((st) => st.label)), labels?.end ?? result.end].join(" → ")} ·{" "}
+                    {result.total_km} km
                     {result.source === "road" ? "" : " (straight line)"}
                     {result.duration_min ? ` · ${formatDuration(result.duration_min)} drive` : ""} · {result.places.length} place
                     {result.places.length === 1 ? "" : "s"} found
@@ -204,6 +259,8 @@ const styles = StyleSheet.create({
   formCard: { marginTop: -spacing.lg, borderRadius: radius.lg, backgroundColor: colors.card },
   swapRow: { flexDirection: "row", alignItems: "center", marginTop: -spacing.sm, marginBottom: spacing.xs },
   line: { flex: 1, height: 1, backgroundColor: colors.border },
+  stopRow: { flexDirection: "row", alignItems: "flex-start" },
+  addStop: { alignSelf: "flex-start", marginTop: -spacing.xs, marginBottom: spacing.sm },
   label: { color: colors.text, marginBottom: spacing.sm },
   summary: {
     backgroundColor: colors.card,
