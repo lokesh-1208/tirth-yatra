@@ -6,6 +6,9 @@ import type {
   AdminPlaceSummary,
   AdminReport,
   AdminSummary,
+  AdminUser,
+  AdminUserDetail,
+  AuditPage,
   AuthResponse,
   CheckMethod,
   ContactRole,
@@ -19,6 +22,7 @@ import type {
   Report,
   ReportInput,
   ReportStatus,
+  Role,
   RouteResult,
   TranslatableFields,
   User,
@@ -157,6 +161,20 @@ export const adminApi = {
   reviewReport: (reportId: number, data: { status: ReportStatus; curator_note?: string }) =>
     request<AdminReport>(`/admin/reports/${reportId}`, json("PATCH", data)),
   reportToLead: (reportId: number) => request<AdminReport>(`/admin/reports/${reportId}/to-lead`, json("POST")),
+
+  // --- users and activity log (admins only) ---
+  users: (params: { q?: string; role?: Role; state?: "locked" | "blocked" | "active"; hide_test?: boolean; limit?: number; offset?: number } = {}) =>
+    request<AdminUser[]>(`/admin/users${qs(params)}`),
+  user: (id: number | string) => request<AdminUserDetail>(`/admin/users/${id}`),
+  createUser: (data: { identifier: string; name?: string; role: Role }) => request<AdminUserDetail>("/admin/users", json("POST", data)),
+  updateUser: (id: number, data: Partial<{ name: string; faith: string | null; sect: string | null; language: string; role: Role }>) =>
+    request<AdminUserDetail>(`/admin/users/${id}`, json("PATCH", data)),
+  lockUser: (id: number, reason: string) => request<AdminUserDetail>(`/admin/users/${id}/lock`, json("POST", { reason })),
+  unlockUser: (id: number) => request<AdminUserDetail>(`/admin/users/${id}/unlock`, json("POST")),
+  resetLogin: (id: number) => request<AdminUserDetail>(`/admin/users/${id}/reset-login`, json("POST")),
+  deleteUser: (id: number) => request<void>(`/admin/users/${id}`, json("DELETE", { confirm: "DELETE" })),
+  audit: (params: { target_type?: string; target_id?: number; actor_id?: number; action?: string; before_id?: number; limit?: number } = {}) =>
+    request<AuditPage>(`/admin/audit${qs(params)}`),
 
   updateLead: (leadId: number, data: Partial<Pick<Lead, "name" | "area" | "source" | "notes" | "status">>) =>
     request<Lead>(`/admin/leads/${leadId}`, json("PATCH", data)),

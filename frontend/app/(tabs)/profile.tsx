@@ -120,7 +120,7 @@ export default function Profile() {
           </Card.Content>
         </Card>
 
-        {user.role === "curator" && (
+        {(user.role === "curator" || user.role === "admin") && (
           <>
             <SectionHeader title="Curator" />
             <Card mode="outlined" style={styles.card}>

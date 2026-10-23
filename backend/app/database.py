@@ -52,3 +52,6 @@ def backfill_defaults() -> None:
         # Places from before the admin section were all visible in the app: keep them visible.
         conn.execute(text("UPDATE places SET status = 'live' WHERE status IS NULL"))
         conn.execute(text("UPDATE users SET role = 'pilgrim' WHERE role IS NULL"))
+        conn.execute(text("UPDATE users SET login_count = 0 WHERE login_count IS NULL"))
+        conn.execute(text("UPDATE users SET token_version = 0 WHERE token_version IS NULL"))
+        conn.execute(text("UPDATE users SET is_locked = 0 WHERE is_locked IS NULL"))

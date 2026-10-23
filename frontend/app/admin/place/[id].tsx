@@ -22,6 +22,7 @@ import {
 import { AdminSection, ChoiceChips, CoverThumb, FieldCell, FieldLabel, FieldRow, Note, StatusPill, to } from "../../../src/adminUi";
 import { ChecksPanel, ContactsPanel, PhotosPanel } from "../../../src/adminPanels";
 import { adminApi } from "../../../src/api";
+import { useAuth } from "../../../src/auth";
 import { LocationPicker } from "../../../src/LocationPicker";
 import { colors, fontFamily, radius, spacing } from "../../../src/theme";
 import type { AdminPlace, PlaceStatus, TranslatableFields } from "../../../src/types";
@@ -43,6 +44,7 @@ export default function PlaceEditor() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const navigation = useNavigation();
   const router = useRouter();
+  const { user } = useAuth();
   const [place, setPlace] = useState<AdminPlace | null>(null);
   const [saved, setSaved] = useState<PlaceForm | null>(null); // form as last saved, to find changes
   const [form, setForm] = useState<PlaceForm | null>(null);
@@ -224,6 +226,16 @@ export default function PlaceEditor() {
             onPress={() => router.push(to(`/admin/reviews?place=${place.id}`))}
             style={{ alignSelf: "flex-start" }}
           />
+          {user?.role === "admin" && (
+            <Button
+              testID="editor-history"
+              title="Change history"
+              icon="history"
+              variant="text"
+              onPress={() => router.push(to(`/admin/activity?type=place&target=${place.id}`))}
+              style={{ alignSelf: "flex-start" }}
+            />
+          )}
         </View>
       </View>
 

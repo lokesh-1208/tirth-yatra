@@ -14,6 +14,7 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Upload
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+from .. import audit
 from ..config import get_settings
 from ..database import get_db
 from ..models import Lead, Place, PlaceContact, PlacePhoto, PlaceTranslation, Report, User, Verification
@@ -55,8 +56,15 @@ _MAGIC = {".jpg": (b"\xff\xd8\xff",), ".png": (b"\x89PNG\r\n\x1a\n",), ".webp": 
 
 
 def require_curator(user: User = Depends(get_current_user)) -> User:
+    """Curators and admins."""
     if not user.is_curator:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Only curators can use the admin section")
+    return user
+
+
+def require_admin(user: User = Depends(get_current_user)) -> User:
+    if not user.is_admin:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Only admins can do this")
     return user
 
 
@@ -210,6 +218,7 @@ def create_place(data: PlaceCreate, db: Session = Depends(get_db), user: User = 
     if lead:
         lead.place_id = place.id
         lead.status = "drafted"
+    audit.log(db, user, "place.create", "place", place.id, place.name, lead_id=data.lead_id)
     db.commit()
     db.refresh(place)
     return _full(place)
@@ -221,26 +230,31 @@ def get_place(place_id: int, db: Session = Depends(get_db)):
 
 
 @router.patch("/places/{place_id}", response_model=AdminPlaceOut)
-def update_place(place_id: int, data: PlaceUpdate, db: Session = Depends(get_db)):
+def update_place(place_id: int, data: PlaceUpdate, db: Session = Depends(get_db), user: User = Depends(require_curator)):
     place = _get_place(db, place_id)
     changes = data.model_dump(exclude_unset=True)
     for field in ("name", "latitude", "longitude", "kind", "faith"):
         if field in changes and changes[field] is None:
             raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, f"{field} cannot be empty")
+    changed = sorted(f for f, v in changes.items() if getattr(place, f) != v)
     for field, value in changes.items():
         setattr(place, field, value)
+    if changed:
+        audit.log(db, user, "place.update", "place", place.id, place.name, fields=changed)
     db.commit()
     db.refresh(place)
     return _full(place)
 
 
 @router.post("/places/{place_id}/status", response_model=AdminPlaceOut)
-def change_status(place_id: int, data: StatusChange, db: Session = Depends(get_db)):
+def change_status(place_id: int, data: StatusChange, db: Session = Depends(get_db), user: User = Depends(require_curator)):
     place = _get_place(db, place_id)
     if data.status == "live" and not place.checks:
         raise HTTPException(
             status.HTTP_409_CONFLICT, "Log at least one check (call, visit or local reference) before making it live"
         )
+    if place.status != data.status:
+        audit.log(db, user, "place.status", "place", place.id, place.name, old=place.status, new=data.status)
     place.status = data.status
     db.commit()
     db.refresh(place)
@@ -251,7 +265,9 @@ def change_status(place_id: int, data: StatusChange, db: Session = Depends(get_d
 
 
 @router.put("/places/{place_id}/translations/{language}", response_model=AdminPlaceOut)
-def put_translation(place_id: int, language: str, data: TranslationIn, db: Session = Depends(get_db)):
+def put_translation(
+    place_id: int, language: str, data: TranslationIn, db: Session = Depends(get_db), user: User = Depends(require_curator)
+):
     place = _get_place(db, place_id)
     language = _check_language(language)
     row = next((t for t in place.translations if t.language == language), None)
@@ -260,18 +276,20 @@ def put_translation(place_id: int, language: str, data: TranslationIn, db: Sessi
         db.add(row)
     for field, value in data.model_dump().items():
         setattr(row, field, (value or "").strip() or None)
+    audit.log(db, user, "place.translation", "place", place.id, place.name, language=language)
     db.commit()
     db.refresh(place)
     return _full(place)
 
 
 @router.delete("/places/{place_id}/translations/{language}", response_model=AdminPlaceOut)
-def delete_translation(place_id: int, language: str, db: Session = Depends(get_db)):
+def delete_translation(place_id: int, language: str, db: Session = Depends(get_db), user: User = Depends(require_curator)):
     place = _get_place(db, place_id)
     row = next((t for t in place.translations if t.language == language), None)
     if not row:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "No text in that language")
     db.delete(row)
+    audit.log(db, user, "place.translation_delete", "place", place.id, place.name, language=language)
     db.commit()
     db.refresh(place)
     return _full(place)
@@ -281,10 +299,11 @@ def delete_translation(place_id: int, language: str, db: Session = Depends(get_d
 
 
 @router.post("/places/{place_id}/contacts", response_model=ContactOut, status_code=status.HTTP_201_CREATED)
-def add_contact(place_id: int, data: ContactIn, db: Session = Depends(get_db)):
+def add_contact(place_id: int, data: ContactIn, db: Session = Depends(get_db), user: User = Depends(require_curator)):
     place = _get_place(db, place_id)
     contact = PlaceContact(place_id=place.id, **{**data.model_dump(), "phone": _normalize_phone(data.phone)})
     db.add(contact)
+    audit.log(db, user, "place.contact_add", "place", place.id, place.name, contact=data.name, public=data.show_publicly)
     db.commit()
     db.refresh(contact)
     return contact
@@ -298,7 +317,9 @@ def _get_contact(db: Session, place_id: int, contact_id: int) -> PlaceContact:
 
 
 @router.patch("/places/{place_id}/contacts/{contact_id}", response_model=ContactOut)
-def update_contact(place_id: int, contact_id: int, data: ContactUpdate, db: Session = Depends(get_db)):
+def update_contact(
+    place_id: int, contact_id: int, data: ContactUpdate, db: Session = Depends(get_db), user: User = Depends(require_curator)
+):
     contact = _get_contact(db, place_id, contact_id)
     changes = data.model_dump(exclude_unset=True)
     if "phone" in changes:
@@ -313,15 +334,20 @@ def update_contact(place_id: int, contact_id: int, data: ContactUpdate, db: Sess
             status.HTTP_422_UNPROCESSABLE_ENTITY,
             "Record when the person agreed to be listed before showing them to pilgrims",
         )
+    place = _get_place(db, place_id)
+    audit.log(db, user, "place.contact_update", "place", place.id, place.name, contact=contact.name, fields=sorted(changes))
     db.commit()
     db.refresh(contact)
     return contact
 
 
 @router.delete("/places/{place_id}/contacts/{contact_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_contact(place_id: int, contact_id: int, db: Session = Depends(get_db)):
+def delete_contact(place_id: int, contact_id: int, db: Session = Depends(get_db), user: User = Depends(require_curator)):
     """Removing a contact deletes their details (they asked to be removed, or they changed)."""
-    db.delete(_get_contact(db, place_id, contact_id))
+    contact = _get_contact(db, place_id, contact_id)
+    place = _get_place(db, place_id)
+    db.delete(contact)
+    audit.log(db, user, "place.contact_delete", "place", place.id, place.name, contact_id=contact_id)
     db.commit()
 
 
@@ -372,6 +398,7 @@ async def upload_photo(
     db.flush()
     if make_cover or first:
         _set_cover(place, photo)
+    audit.log(db, user, "place.photo_upload", "place", place.id, place.name, photo_id=photo.id, cover=photo.is_cover)
     db.commit()
     db.refresh(photo)
     return _photo_out(photo)
@@ -393,7 +420,9 @@ def _get_photo(db: Session, place_id: int, photo_id: int) -> PlacePhoto:
 
 
 @router.patch("/places/{place_id}/photos/{photo_id}", response_model=PhotoOut)
-def update_photo(place_id: int, photo_id: int, data: PhotoUpdate, db: Session = Depends(get_db)):
+def update_photo(
+    place_id: int, photo_id: int, data: PhotoUpdate, db: Session = Depends(get_db), user: User = Depends(require_curator)
+):
     place = _get_place(db, place_id)
     photo = _get_photo(db, place_id, photo_id)
     changes = data.model_dump(exclude_unset=True)
@@ -404,13 +433,14 @@ def update_photo(place_id: int, photo_id: int, data: PhotoUpdate, db: Session = 
         _set_cover(place, photo)
     elif make_cover is False and photo.is_cover:
         _set_cover(place, None)  # no cover: pilgrims see the auto cover
+    audit.log(db, user, "place.photo_update", "place", place.id, place.name, photo_id=photo.id, cover=make_cover)
     db.commit()
     db.refresh(photo)
     return _photo_out(photo)
 
 
 @router.delete("/places/{place_id}/photos/{photo_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_photo(place_id: int, photo_id: int, db: Session = Depends(get_db)):
+def delete_photo(place_id: int, photo_id: int, db: Session = Depends(get_db), user: User = Depends(require_curator)):
     place = _get_place(db, place_id)
     photo = _get_photo(db, place_id, photo_id)
     was_cover = photo.is_cover
@@ -419,6 +449,7 @@ def delete_photo(place_id: int, photo_id: int, db: Session = Depends(get_db)):
     db.delete(photo)
     if was_cover:
         _set_cover(place, None)
+    audit.log(db, user, "place.photo_delete", "place", place.id, place.name, photo_id=photo_id)
     db.commit()
 
 
@@ -451,6 +482,7 @@ def log_check(place_id: int, data: CheckIn, db: Session = Depends(get_db), user:
         place.verified_on = checked_on
         place.verified_method = data.method
         place.recheck_due = add_months(checked_on, data.recheck_after_months)
+    audit.log(db, user, "place.check", "place", place.id, place.name, method=data.method, checked_on=checked_on.isoformat())
     db.commit()
     db.refresh(place)
     return _full(place)
@@ -471,13 +503,15 @@ def list_leads(status_: LeadStatus | None = Query(None, alias="status"), db: Ses
 def add_lead(data: LeadIn, db: Session = Depends(get_db), user: User = Depends(require_curator)):
     lead = Lead(**data.model_dump(), created_by_id=user.id)
     db.add(lead)
+    db.flush()
+    audit.log(db, user, "lead.create", "lead", lead.id, lead.name)
     db.commit()
     db.refresh(lead)
     return lead
 
 
 @router.patch("/leads/{lead_id}", response_model=LeadOut)
-def update_lead(lead_id: int, data: LeadUpdate, db: Session = Depends(get_db)):
+def update_lead(lead_id: int, data: LeadUpdate, db: Session = Depends(get_db), user: User = Depends(require_curator)):
     lead = db.get(Lead, lead_id)
     if not lead:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Lead not found")
@@ -486,8 +520,13 @@ def update_lead(lead_id: int, data: LeadUpdate, db: Session = Depends(get_db)):
         raise HTTPException(status.HTTP_409_CONFLICT, "Create the draft place from this lead to mark it drafted")
     if "name" in changes and changes["name"] is None:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "name cannot be empty")
+    old_status = lead.status
     for field, value in changes.items():
         setattr(lead, field, value)
+    audit.log(
+        db, user, "lead.update", "lead", lead.id, lead.name,
+        fields=sorted(changes), old=old_status if "status" in changes else None, new=changes.get("status"),
+    )
     db.commit()
     db.refresh(lead)
     return lead
@@ -535,6 +574,7 @@ def list_reports(
 @router.patch("/reports/{report_id}", response_model=AdminReportOut)
 def review_report(report_id: int, data: ReportReview, db: Session = Depends(get_db), user: User = Depends(require_curator)):
     report = _get_report(db, report_id)
+    audit.log(db, user, "report.review", "report", report.id, report_title(db, report), old=report.status, new=data.status)
     report.status = data.status
     if data.curator_note is not None:
         report.curator_note = data.curator_note.strip() or None
@@ -566,6 +606,7 @@ def report_to_lead(report_id: int, db: Session = Depends(get_db), user: User = D
     )
     db.add(lead)
     db.flush()
+    audit.log(db, user, "report.to_lead", "report", report.id, report.place_name, lead_id=lead.id)
     report.lead_id = lead.id
     report.status = "resolved"
     report.curator_note = report.curator_note or "Thank you! We will call and verify this place before adding it."

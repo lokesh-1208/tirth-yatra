@@ -1,7 +1,7 @@
 from datetime import date, datetime
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
 class OtpRequest(BaseModel):
@@ -406,3 +406,89 @@ class AdminReportOut(ReportOut):
 class ReportReview(BaseModel):
     status: ReportStatus
     curator_note: str | None = Field(default=None, max_length=1000)
+
+
+# ---------------------------------------------------------------------------------------------
+# User management and the activity log (admins only)
+# ---------------------------------------------------------------------------------------------
+
+Role = Literal["pilgrim", "curator", "admin"]
+
+
+class AdminUserOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    name: str | None = None
+    email: str | None = None
+    phone: str | None = None
+    role: str = "pilgrim"
+    faith: str | None = None
+    sect: str | None = None
+    language: str = "en"
+    created_at: datetime | None = None
+    last_login_at: datetime | None = None
+    login_count: int = 0
+    is_locked: bool = False
+    locked_reason: str | None = None
+    locked_at: datetime | None = None
+    login_blocked_until: datetime | None = None  # too many wrong OTPs
+    saved_count: int = 0
+    reports_count: int = 0
+    checks_count: int = 0
+
+    @field_validator("login_count", "is_locked", "role", "language", mode="before")
+    @classmethod
+    def _defaults_for_old_rows(cls, v, info):
+        if v is None:
+            return {"login_count": 0, "is_locked": False, "role": "pilgrim", "language": "en"}[info.field_name]
+        return v
+
+
+class AuditOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    actor_id: int | None = None
+    actor_name: str | None = None
+    action: str
+    target_type: str
+    target_id: int | None = None
+    target_label: str | None = None
+    details: dict | None = None
+    created_at: datetime
+
+
+class AuditPage(BaseModel):
+    entries: list[AuditOut]
+    next_before_id: int | None = None  # pass as before_id for the next page; None = no more
+
+
+class AdminUserDetail(AdminUserOut):
+    recent_reports: list[ReportOut] = []
+    activity_on: list[AuditOut] = []  # what was done to this account
+    activity_by: list[AuditOut] = []  # what this user did in the admin section
+
+
+class UserCreate(BaseModel):
+    """Add a team member (or anyone) before their first login. They log in with OTP as usual."""
+
+    identifier: str = Field(min_length=3, max_length=255)  # email or phone
+    name: str | None = Field(default=None, min_length=1, max_length=120)
+    role: Role = "curator"
+
+
+class AdminUserUpdate(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=120)
+    faith: str | None = Field(default=None, max_length=40)
+    sect: str | None = Field(default=None, max_length=40)
+    language: str | None = Field(default=None, pattern=LANGUAGE_PATTERN)
+    role: Role | None = None
+
+
+class LockIn(BaseModel):
+    reason: str = Field(min_length=3, max_length=300)
+
+
+class DeleteUserIn(BaseModel):
+    confirm: Literal["DELETE"]  # typed by the admin, so an account is never deleted by accident
